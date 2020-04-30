@@ -1,0 +1,13 @@
+var meaning = function(utterance, color) {
+  return getScore({utterance : utterance, color : color});
+};
+
+var literalListener = function(utterance, colorContext) {
+  Infer({method: "enumerate"}, function(){
+    var color = uniformDraw(colorContext);
+    factor(meaning(utterance, color));
+    return color;
+  });
+};
+
+literalListener("green", ["#14EB95","#D1C92E","#1114EE"]);
