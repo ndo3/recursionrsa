@@ -30,18 +30,16 @@ class DescriptionEncoder(nn.Module):
 
 
 class ChoiceRanker(nn.Module):
-    def __init__(self, model_name, referentEncoder, stringEncoder, hidden_referent, hidden_descriptor, num_descriptor=261, num_referents=100, hidden_size=100):
+    def __init__(self, name, referentEncoder, stringEncoder, hidden_referent, hidden_descriptor, num_descriptors=261, num_referents=100, hidden_size=100):
         super(ChoiceRanker, self).__init__()
         # metadata
-        self.modelName = modelName
+        self.name = name
         self.referentEncoder = referentEncoder
         self.stringEncoder = stringEncoder
         # instantiate the two weight matrices
         self.referentWeights = nn.Linear(hidden_size, hidden_referent) #W4
         self.descriptorWeights = nn.Linear(hidden_size, 1) # description is 1 dimensional
-        self.additionalLayer = nn.Linear(hidden_size)
-
-        
+        self.additionalLayer = nn.Linear(hidden_size, num_descriptors)
 
     def forward(self, referents, descriptors, labels, prefix=""):
         """
@@ -53,16 +51,29 @@ class ChoiceRanker(nn.Module):
             W5: hidden_size x hidden_descriptor
             => W5e1: hidden_size x 1
             => W4e1 + W5ed :: (hidden_size x (num_referents))
-            w3 : hidden_size x 1
-            R: 1 x num_referents
+
+            + () : hidden_size x num_referents 
+            | w3 : hidden_size x num_descriptors
+            | w3^T : num_descriptors x hidden_size
+            w3^T  * () = R: num_descriptors x num_referents
         -=-=-=-=-=-==--=
-        referents: 
+        referents: num_referents x 3
+        descriptors: ,num_descriptors
+        labels: ,num_referents
         """
         x = self.referentWeights(referents) + self.descriptorWeights(descriptors)
         # ReLu it
         x = F.relu(x)
-        # Then multiply by 
+        # Then multiply by the additional layer w3
         x = self.additionalLayer(x)
+        # Then 2D softmax it
+        x_temp = np.zeros((num_descriptors, num_referents))
+        for i in range(len(x_temp)):
+            x_temp[i] = F.softmax(x[i])
+        x = x_temp
+        predictions = np.argmax(x, axis=1)
+        accuracy = predictions == labels
+        return x, accuracy
 
         
         
@@ -82,16 +93,17 @@ class ReferentDescriber(nn.Module):
         return x
 
 class LiteralSpeaker(nn.Module):
-    def __init__(self, referentEncoder, referentDescriber):
+    def __init__(self, name, referentEncoder, referentDescriber):
         super(LiteralSpeaker, self).__init__()
+        self.name = name # adding the name of the model
         self.referentEncoder = referentEncoder
         self.referentDescriber = referentDescriber
 
     def forward(self, referents, correct_choice):
         return F.softmax(self.referentDescriber(self.referentEncoder(referents)[correct_choice]))  # Outputs a 1d prob dist over utterances
 
-class LiteralListener(nn.Module):
-    def __init__(self):
+class LiteralListener(nn.Module): #Listener0
+    def __init__(self, all_referents, all_descriptions, choice_ranker):
         super(LiteralListener, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
@@ -110,8 +122,9 @@ class LiteralListener(nn.Module):
         return x
 
 class ReasoningSpeaker(nn.Module):
-    def __init__(self, previousListener, literalSpeaker, utterances):
+    def __init__(self, name, previousListener, literalSpeaker, utterances):
         super(ReasoningSpeaker, self).__init__()
+        self.name = name # adding the name of the model to know which level we are at
         self.previousListener = previousListener
         self.literalSpeaker = literalSpeaker
         self.utterances = utterances
@@ -129,8 +142,9 @@ class ReasoningSpeaker(nn.Module):
         return final_scores # Outputs a 1d prob dist over utterances
 
 class ReasoningListener(nn.Module):
-    def __init__(self, previousSpeaker):
+    def __init__(self, name, previousSpeaker):
         super(ReasoningListener, self).__init__()
+        self.name = name # adding the name of the model to know which level we are at
         self.previousSpeaker = previousSpeaker
 
     def forward(self, descriptor_idx, referents):
