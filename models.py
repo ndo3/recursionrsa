@@ -77,9 +77,6 @@ class ChoiceRanker(nn.Module):
 
         
         
-        
-        
-
 class ReferentDescriber(nn.Module):
     def __init__(self, input_dim=100, num_utterances=261, hidden_dim=100):
         super(ReferentDescriber, self).__init__()
@@ -103,23 +100,19 @@ class LiteralSpeaker(nn.Module):
         return F.softmax(self.referentDescriber(self.referentEncoder(referents)[correct_choice]))  # Outputs a 1d prob dist over utterances
 
 class LiteralListener(nn.Module): #Listener0
-    def __init__(self, all_referents, all_descriptions, choice_ranker):
+    def __init__(self, choice_ranker):
         super(LiteralListener, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.choice_ranker = choice_ranker
 
-    def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+    def forward(self, all_referents, all_descriptors, labels):
+        """
+        all_referents: num_referents x 3
+        all_descriptions: num_descriptions x 1
+        """
+        # TODO: Find a way to match up labels with correct referents
+        logprobs, accuracy = self.choice_ranker.forward(all_referents, all_descriptors, labels)
+        return logprobs, accuracy
+        
 
 class ReasoningSpeaker(nn.Module):
     def __init__(self, name, previousListener, literalSpeaker, utterances):
