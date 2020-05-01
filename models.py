@@ -39,9 +39,9 @@ class ChoiceRanker(nn.Module):
         # instantiate the two weight matrices
         self.referentWeights = nn.Linear(hidden_size, hidden_referent) #W4
         self.descriptorWeights = nn.Linear(hidden_size, 1) # description is 1 dimensional
-        self.additionalLayer = nn.Linear(hidden_size, num_descriptors)
+        self.additionalLayer = nn.Linear(hidden_size, 1) # (1 because we are not doing batch)
 
-    def forward(self, referents, descriptors, labels, prefix=""):
+    def forward(self, referents, descriptor, labels, prefix=""):
         """
         Mental map:
             e1: hidden_referent x num_referents
@@ -53,27 +53,23 @@ class ChoiceRanker(nn.Module):
             => W4e1 + W5ed :: (hidden_size x (num_referents))
 
             + () : hidden_size x num_referents 
-            | w3 : hidden_size x num_descriptors
-            | w3^T : num_descriptors x hidden_size
-            w3^T  * () = R: num_descriptors x num_referents
+            | w3 : hidden_size x 1
+            | w3^T : 1 x hidden_size (1 because we are not doing batch)
+            w3^T  * () = R: 1 x num_referents
         -=-=-=-=-=-==--=
         referents: num_referents x 3
         descriptors: ,num_descriptors
         labels: ,num_referents
         """
-        x = self.referentWeights(referents) + self.descriptorWeights(descriptors)
+        x = self.referentWeights(referents) + self.descriptorWeights(descriptor)
         # ReLu it
         x = F.relu(x)
         # Then multiply by the additional layer w3
         x = self.additionalLayer(x)
-        # Then 2D softmax it
-        x_temp = np.zeros((num_descriptors, num_referents))
-        for i in range(len(x_temp)):
-            x_temp[i] = F.softmax(x[i])
-        x = x_temp
-        predictions = np.argmax(x, axis=1)
-        accuracy = predictions == labels
-        return x, accuracy
+        # Then softmax it
+        x = F.softmax(x, dim=1)
+        # Just outputting the end of equation (4) in the paper
+        return x
 
         
         
@@ -96,22 +92,22 @@ class LiteralSpeaker(nn.Module):
         self.referentEncoder = referentEncoder
         self.referentDescriber = referentDescriber
 
-    def forward(self, referents, correct_choice):
-        return F.softmax(self.referentDescriber(self.referentEncoder(referents)[correct_choice]))  # Outputs a 1d prob dist over utterances
+    def forward(self, referent, correct_choice, utterances):
+        return F.softmax(self.referentDescriber(self.referentEncoder(referent)[correct_choice]))  # Outputs a 1d prob dist over utterances
 
 class LiteralListener(nn.Module): #Listener0
     def __init__(self, choice_ranker):
         super(LiteralListener, self).__init__()
         self.choice_ranker = choice_ranker
 
-    def forward(self, all_referents, all_descriptors, labels):
+    def forward(self, encoded_referents, descriptor_idx, encoded_descriptors):
         """
         all_referents: num_referents x 3
         all_descriptions: num_descriptions x 1
         """
         # TODO: Find a way to match up labels with correct referents
-        logprobs, accuracy = self.choice_ranker.forward(all_referents, all_descriptors, labels)
-        return logprobs, accuracy
+        encoded_descriptor = encoded_descriptors[descriptor_idx]
+        return self.choice_ranker.forward(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
         
 
 class ReasoningSpeaker(nn.Module):
@@ -120,12 +116,11 @@ class ReasoningSpeaker(nn.Module):
         self.name = name # adding the name of the model to know which level we are at
         self.previousListener = previousListener
         self.literalSpeaker = literalSpeaker
-        self.utterances = utterances
 
-    def forward(self, referents, correct_choice):
+    def forward(self, referents, correct_choice, utterances):
         referent = referents[correct_choice]
         # Select the utterance that makes the previous listener most maximize the correct referent (correct_choice) regularized by fluency
-        listener_prob_dist = torch.tensor([self.previousListener(descriptor, referents)[correct_choice] for descriptor in self.utterances]) # Prob(correct choice | descriptor). 1d vector of len num utterances
+        listener_prob_dist = torch.tensor([self.previousListener(descriptor, referents)[correct_choice] for descriptor in utterances]) # Prob(correct choice | descriptor). 1d vector of len num utterances
 
         # Fluency
         speaker_prob_dist = self.literalSpeaker(referent) # Prob(utterance). 1d vector of len num utterances
@@ -140,7 +135,7 @@ class ReasoningListener(nn.Module):
         self.name = name # adding the name of the model to know which level we are at
         self.previousSpeaker = previousSpeaker
 
-    def forward(self, descriptor_idx, referents):
+    def forward(self, referents, descriptor_idx, encoded_descriptors):
         # Select the referent that makes the previous speaker most maximize the correct descriptor (descriptor_idx)
         prob_dist = torch.tensor([self.previousSpeaker(referents, i)[descriptor_idx] for i in range(len(referents))])
         prob_dist = F.softmax(prob_dist)
