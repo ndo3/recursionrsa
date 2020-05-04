@@ -91,6 +91,8 @@ class LiteralSpeaker(nn.Module):
         self.name = name # adding the name of the model
         self.referentEncoder = referentEncoder
         self.referentDescriber = referentDescriber
+        self.type = "SPEAKER"
+        self.reasoning = False
 
     def forward(self, referent, correct_choice, utterances):
         return F.softmax(self.referentDescriber(self.referentEncoder(referent)[correct_choice]))  # Outputs a 1d prob dist over utterances
@@ -99,6 +101,8 @@ class LiteralListener(nn.Module): #Listener0
     def __init__(self, choice_ranker):
         super(LiteralListener, self).__init__()
         self.choice_ranker = choice_ranker
+        self.type = "LISTENER"
+        self.reasoning = False
 
     def forward(self, encoded_referents, descriptor_idx, encoded_descriptors):
         """
@@ -116,6 +120,8 @@ class ReasoningSpeaker(nn.Module):
         self.name = name # adding the name of the model to know which level we are at
         self.previousListener = previousListener
         self.literalSpeaker = literalSpeaker
+        self.type = "SPEAKER"
+        self.reasoning = True
 
     def forward(self, referents, correct_choice, utterances):
         referent = referents[correct_choice]
@@ -134,6 +140,8 @@ class ReasoningListener(nn.Module):
         super(ReasoningListener, self).__init__()
         self.name = name # adding the name of the model to know which level we are at
         self.previousSpeaker = previousSpeaker
+        self.type = "LISTENER"
+        self.reasoning = True
 
     def forward(self, referents, descriptor_idx, encoded_descriptors):
         # Select the referent that makes the previous speaker most maximize the correct descriptor (descriptor_idx)
