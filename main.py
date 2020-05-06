@@ -42,12 +42,14 @@ def getalldescriptors(all_all_sentences):
     filtered = {s: sentence_dict[s] for s in sentence_dict if sentence_dict[s] >= 2}
     return list(filtered.keys())
 
+def getallreferents(referents):
+
 
 #########################################################################################
 
 TRAIN = 0.8
 # load the data from the colors_probs.pkl file
-with open("data/colors_probs.pkl", "rb") as datafile:
+with open("data/colors_probs_better.pkl", "rb") as datafile:
     data = pickle.load(datafile)
     # print(data)
     indices = np.random.rand(len(data)) < TRAIN
@@ -55,8 +57,8 @@ with open("data/colors_probs.pkl", "rb") as datafile:
 
 
 allwordsdict = {}
-all_train_utterances = traindata['contents']
-all_utterances = list(getalldescriptors(data['contents']))
+all_train_utterances = traindata['utterances']
+all_utterances = list(getalldescriptors(data['utterances']))
 # print(all_utterances)
 le = preprocessing.LabelEncoder() #LabelEncoder for all the possible utterances
 transformed_utterances = le.fit_transform(all_utterances)
@@ -65,7 +67,7 @@ transformed_utterances = le.fit_transform(all_utterances)
 
 # # instantiate referent and description encoder
 referent_encoder = ReferentEncoder()
-description_encoder = DescriptionEncoder(vocab_size=getvocabsize(data['contents']))
+description_encoder = DescriptionEncoder(vocab_size=getvocabsize(data['utterances']))
 choice_ranker = ChoiceRanker("choiceranker", referent_encoder, description_encoder, num_descriptors=len(getalldescriptors(all_train_utterances)), num_referents=len(traindata))
 referent_describer = ReferentDescriber(input_dim=len(traindata), num_utterances=len(getalldescriptors(all_train_utterances)))
 # # instantiate the LiteralSpeaker and the LiteralListener
@@ -90,7 +92,7 @@ NUM_EPOCHS = 10
 
 #     # Train the literal models
 
-#     # For each 
+#     # For each
 #     pass
 
 # def run_pipeline():
@@ -144,10 +146,9 @@ def train_literal(all_referents, all_descriptors, model):
                 loss.backward()
                 optimizer_literal_speaker.step()
 
-                
 
-    
+
+
 
 if __name__ == "__main__":
-    train_literal(traindata['color'], transformed_utterances, l0)
-
+    train_literal(traindata.index, transformed_utterances, l0)
