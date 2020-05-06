@@ -3,6 +3,7 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
 
 class ReferentEncoder(nn.Module):
     def __init__(self, input_dim=3, hidden_dim=100):
@@ -11,11 +12,11 @@ class ReferentEncoder(nn.Module):
         self.fc1 = nn.Linear(input_dim, hidden_dim)
 
     def forward(self, x):
-        x = self.fc1(x)
+        x = self.fc1(x.float())
         return x
 
 class DescriptionEncoder(nn.Module):
-    def __init__(self, vocab_size=100, embedding_dim=50, hidden_dim=100):
+    def __init__(self, vocab_size=96, embedding_dim=50, hidden_dim=100): # 96 = len(all_descriptors) in main.py
         super(DescriptionEncoder, self).__init__()
         self.hidden_dim = hidden_dim
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
@@ -25,7 +26,7 @@ class DescriptionEncoder(nn.Module):
     def forward(self, x):
         print("x: ", x)
         embeds = self.embeddings(x)
-        lstm_out, _ = self.lstm(embeds.view(len(x), 1, -1))
+        lstm_out, _ = self.lstm(embeds.view(1, -1, 50)) 
         x = self.fc1(lstm_out)
         return x
 
@@ -42,7 +43,7 @@ class ChoiceRanker(nn.Module):
         self.descriptorWeights = nn.Linear(hidden_size, 1) # description is 1 dimensional
         self.additionalLayer = nn.Linear(hidden_size, 1) # (1 because we are not doing batch)
 
-    def forward(self, referents, descriptor, labels, prefix=""):
+    def forward(self, referents, descriptor):
         """
         Mental map:
             e1: hidden_referent x num_referents
@@ -62,6 +63,10 @@ class ChoiceRanker(nn.Module):
         descriptors: ,num_descriptors
         labels: ,num_referents
         """
+        print("Referents old: ", referents)
+        print("Type: ", type(referents))
+        referents = torch.from_numpy(np.array([t.numpy() for t in referents]))
+        print("Referents new: ", referents)
         x = self.referentWeights(referents) + self.descriptorWeights(descriptor)
         # ReLu it
         x = F.relu(x)
@@ -75,7 +80,7 @@ class ChoiceRanker(nn.Module):
         
         
 class ReferentDescriber(nn.Module):
-    def __init__(self, input_dim=100, num_utterances=261, hidden_dim=100):
+    def __init__(self, input_dim=100, num_utterances=96, hidden_dim=100):
         super(ReferentDescriber, self).__init__()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, num_utterances)
