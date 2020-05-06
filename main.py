@@ -42,8 +42,6 @@ def getalldescriptors(all_all_sentences):
     filtered = {s: sentence_dict[s] for s in sentence_dict if sentence_dict[s] >= 2}
     return list(filtered.keys())
 
-def getallreferents(referents):
-
 
 def getallreferents(ref_index):
     print("OMANGUA ", list(ref_index)[0])
