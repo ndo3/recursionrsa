@@ -13,6 +13,13 @@ rows = [r.find_all("td") for r in rows]
 colors = [list(map(lambda x: x.text, r)) for r in rows]
 colors = [c for c in colors if len(c) > 0]
 
-colors = {r[0]: r[1:] for r in colors}
+hsls = [r[0] for r in colors]
 
-pickle.dump(colors, open("./data/colors_probs_better.pkl", "wb"))
+df = pd.DataFrame(index = hsls, columns = ['utterances'])
+df['utterances'] = [r[1:] for r in colors]
+
+pickle.dump(df, open("./data/colors_probs_better.pkl", "wb"))
+
+
+
+#pickle.dump(colors, open("./data/colors_probs_better.pkl", "wb"))
