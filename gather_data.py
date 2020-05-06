@@ -18,6 +18,7 @@ hsls = [r[0] for r in colors]
 df = pd.DataFrame(index = hsls, columns = ['utterances'])
 df['utterances'] = [r[1:] for r in colors]
 
+pickle.dump(df, open("./data/colors_probs_better.pkl", "wb"))
 
 
 
