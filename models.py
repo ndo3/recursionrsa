@@ -23,6 +23,7 @@ class DescriptionEncoder(nn.Module):
         self.fc1 = nn.Linear(hidden_dim, hidden_dim)
 
     def forward(self, x):
+        print("x: ", x)
         embeds = self.embeddings(x)
         lstm_out, _ = self.lstm(embeds.view(len(x), 1, -1))
         x = self.fc1(lstm_out)
@@ -30,7 +31,7 @@ class DescriptionEncoder(nn.Module):
 
 
 class ChoiceRanker(nn.Module):
-    def __init__(self, name, referentEncoder, stringEncoder, hidden_referent, hidden_descriptor, num_descriptors=261, num_referents=100, hidden_size=100):
+    def __init__(self, name, referentEncoder, stringEncoder, hidden_referent=100, hidden_descriptor=100, num_descriptors=261, num_referents=100, hidden_size=100):
         super(ChoiceRanker, self).__init__()
         # metadata
         self.name = name
@@ -85,6 +86,7 @@ class ReferentDescriber(nn.Module):
         
         return x
 
+
 class LiteralSpeaker(nn.Module):
     def __init__(self, name, referentEncoder, referentDescriber):
         super(LiteralSpeaker, self).__init__()
@@ -97,9 +99,11 @@ class LiteralSpeaker(nn.Module):
     def forward(self, referent, correct_choice, utterances):
         return F.softmax(self.referentDescriber(self.referentEncoder(referent)[correct_choice]))  # Outputs a 1d prob dist over utterances
 
+
 class LiteralListener(nn.Module): #Listener0
-    def __init__(self, choice_ranker):
+    def __init__(self, name, choice_ranker):
         super(LiteralListener, self).__init__()
+        self.name = name
         self.choice_ranker = choice_ranker
         self.type = "LISTENER"
         self.reasoning = False
