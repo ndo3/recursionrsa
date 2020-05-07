@@ -5,6 +5,7 @@ from collections import namedtuple, defaultdict
 import csv
 import sys
 import torch
+import random
 
 def get_data():
     df = pd.read_csv("./data/filteredCorpus.csv")
@@ -28,6 +29,17 @@ def get_data():
 # Literal listener data function
 
 def get_literal_listener_training_data(df):
+    output = []
+    for i, row in df.iterrows():
+        utt = row['contents']
+        correct = torch.tensor(row[['clickColH', 'clickColS', 'clickColL']])
+        alt1 = torch.tensor(row[['alt1ColH', 'alt1ColS', 'alt1ColL']])
+        alt2 = torch.tensor(row[['alt2ColH', 'alt2ColS', 'alt2ColL']])
+        colors = (correct, alt1, alt2)
+        idxs = random.choice([0,1,2]) # randomly permute colors
+        colors_shuff = (colors[idxs[0]], colors[idxs[1]], colors[idxs[2]])
+        correct_idx = idxs[0] # index where correct color goes
+        output.append((correct_idx, colors_shuff, utt))
     return output # [correct_referent_idx, list_of_three_referents, descriptor]
 
 # Literal Speaker data function
@@ -35,11 +47,11 @@ def get_literal_listener_training_data(df):
 def get_literal_speaker_training_data(df): #TODO: Josh implement this
     output = []
     utterances = {}
-    for row in df.iterrows():
+    for i, row in df.iterrows():
         utt = row['contents']
         color = torch.tensor(row[['clickColH', 'clickColS', 'clickColL']])
         if utt not in utterances:
-            utterances[utt] = len(utt)
+            utterances[utt] = len(utt) # from natalie: why len? isn't that number of letters?
         output.append([color, utterances[utt]])
 
     return output, utterances # [referent, utterance_idx], {utterance: idx forall utterances}
