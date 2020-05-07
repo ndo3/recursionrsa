@@ -72,7 +72,7 @@ def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs
     listener_criterion = nn.CrossEntropyLoss()
     speaker_criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam([x for x in l0.parameters()] + [x for x in s0.parameters()], lr=5e-4)
-    zipped_data = zip(listener_training_data, speaker_training_data)
+    zipped_data = [x for x in zip(listener_training_data, speaker_training_data)]
     for i in range(epochs):
         print("Epoch", i)
         np.random.shuffle(zipped_data)
