@@ -24,42 +24,6 @@ from scipy.ndimage.filters import gaussian_filter1d
 nlp = English()
 tokenizer = Tokenizer(nlp.vocab)
 
-
-##############################
-### HELPER FUNCTIONS #########
-##############################
-
-def getvocabsize(all_all_sentences):
-    worddict = {}
-    for all_sentences in all_all_sentences:
-        for sentence in all_sentences:
-            tokens = tokenizer(sentence)
-            for token in tokens:
-                worddict[token] = 1
-    return len(worddict)
-
-
-def getalldescriptors(all_all_sentences):
-    sentence_dict = {}
-    for all_sentences in all_all_sentences:
-        for sentence in all_sentences:
-            if sentence not in sentence_dict: sentence_dict[sentence] = 1
-            else: sentence_dict[sentence] += 1
-    filtered = {s: sentence_dict[s] for s in sentence_dict if sentence_dict[s] >= 2}
-    return list(filtered.keys())
-
-
-def getallreferents(ref_index):
-    print("OMANGUA ", list(ref_index)[0])
-    ref_list = list(ref_index)
-    ref_list = [r[1:-1].split(", ") for r in ref_list]
-    ref_list = [[int(r[0]), int(r[1]), int(r[2])] for r in ref_list]
-    return np.array(ref_list)
-
-
-#########################################################################################
-
-
 def train_literal_listener(training_data, model, epochs):
     losses = []
     criterion = nn.CrossEntropyLoss()
@@ -97,6 +61,31 @@ def train_literal_speaker(training_data, model, epochs):
             loss.backward()
             optimizer.step()
     return np.array(losses)
+
+def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs):
+    speaker_losses = []
+    listener_losses = []
+    listener_criterion = nn.CrossEntropyLoss()
+    speaker_criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam([x for x in l0.parameters()] + [x for x in s0.parameters()], lr=5e-4)
+    for i in range(epochs):
+        print("Epoch", i)
+        zipped_data = zip(listener_training_data, speaker_training_data)
+        for (correct_referent_idx, list_of_three_referents, descriptor), (referent, utterance_idx) in tqdm(zipped_data, total=len(listener_training_data)):
+            listener_probs = l0(referents=list_of_three_referents, descriptor=descriptor)
+            listener_loss = listener_criterion(listener_probs.unsqueeze(0), correct_referent_idx.unsqueeze(0))
+            listener_losses.append(listener_loss.item())
+
+            speaker_probs = s0(referent)
+            speaker_loss = speaker_criterion(speaker_probs.unsqueeze(0), utterance_idx.unsqueeze(0))
+            speaker_losses.append(speaker_loss.item())
+
+            loss = listener_loss + speaker_loss
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+    return np.array(speaker_losses), np.array(listener_losses)
 
 
 def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recursion=5):
@@ -136,12 +125,16 @@ def main():
     NUM_EPOCHS = 1
     smoothing_sigma = 2
     alpha = 0.5
-    print("Training Literal Litener")
-    literal_listener_losses = train_literal_listener(literal_listener_training_data, l0, epochs=NUM_EPOCHS)
+
+    # print("Training Literal Litener")
+    # literal_listener_losses = train_literal_listener(literal_listener_training_data, l0, epochs=NUM_EPOCHS)
+    # print("Training Literal Speaker")
+    # literal_speaker_losses = train_literal_speaker(literal_speaker_training_data, s0, epochs=NUM_EPOCHS)
+    print("Training Literals")
+    literal_speaker_losses, literal_listener_losses = train_literals(literal_listener_training_data, literal_speaker_training_data, l0, s0, NUM_EPOCHS)
     plt.plot(gaussian_filter1d(literal_listener_losses, sigma=smoothing_sigma), alpha=alpha)
-    print("Training Literal Speaker")
-    literal_speaker_losses = train_literal_speaker(literal_speaker_training_data, s0, epochs=NUM_EPOCHS)
     plt.plot(gaussian_filter1d(literal_speaker_losses, sigma=smoothing_sigma), alpha=alpha)
+
     plt.legend(["Literal Listener", "Literal Speaker"])
     plt.show()
 
