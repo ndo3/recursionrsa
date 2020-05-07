@@ -108,8 +108,8 @@ def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recur
 def calculate_accuracy(data, listener, speaker):
     num_correct = 0.
     for correct_referent_idx, list_of_three_referents, _ in data:
-        descriptor = torch.argmax(speaker(list_of_three_referents[correct_referent_idx]))
-        guess = torch.argmax(listener(list_of_three_referents, descriptor))
+        descriptor = torch.argmax(speaker(list_of_three_referents[correct_referent_idx])) # Descriptor chooses an utterance
+        guess = torch.argmax(listener(list_of_three_referents, descriptor)) # Listener makes a guess as to the referent
 
         if guess == correct_referent_idx:
             num_correct += 1.
