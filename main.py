@@ -116,19 +116,19 @@ literal_training_data = {le.transform([k])[0]: literal_training_data[k] for k in
 
 
 def train_literal_listener(training_data, model, epochs=NUM_EPOCHS):
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=5e-4)
     for i in range(epochs):
         for correct_referent_idx, list_of_three_referents, descriptor in training_data:
-            e_referents = [referent_encoder.forward(x) for x in list_of_three_referents]
-            e_descriptor = description_encoder.forward(descriptor)
-            probs = model.forward(referent=referent, correct_choice=1, utterances=e_descriptors)
+            probs = model.forward(referents=list_of_three_referents, descriptor=descriptors)
 
             # calculate cross entropy loss
             loss = criterion(probs, correct_referent_idx)
 
             # update
-            optimizer_literal_speaker.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
-            optimizer_literal_speaker.step()
+            optimizer.step()
 
 
     # for i in range(epochs):
@@ -151,19 +151,32 @@ def train_literal_listener(training_data, model, epochs=NUM_EPOCHS):
 
 def train_literal_speaker(all_referents, all_descriptors, model, epochs=NUM_EPOCHS):
 
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=5e-4)
     for i in range(epochs):
-        for r_idx, referent in enumerate(all_referents):
-            # referent = referent.unsqueeze(0)
-            # e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
-            e_descriptors = [description_encoder.forward(x) for x in torch_all_descriptions]
-            # zero the parameters dimension
-            optimizer_literal_speaker.zero_grad()
-            probs = model.forward(referent=referent, correct_choice=1, utterances=e_descriptors)
-            # calculate cross entropy loss
-            loss = criterion(probs, labels)
-            # update
+        for referent, utterance_idx in training_data:
+            probs = model.forward(referent)
+
+            loss = criterion(probs, utterance_idx)
+
+            optimizer.zero_grad()
             loss.backward()
-            optimizer_literal_speaker.step()
+            optimizer.step()
+
+
+
+        # for r_idx, referent in enumerate(all_referents):
+        #     # referent = referent.unsqueeze(0)
+        #     # e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
+        #     e_descriptors = [description_encoder.forward(x) for x in torch_all_descriptions]
+        #     # zero the parameters dimension
+        #     optimizer_literal_speaker.zero_grad()
+        #     probs = model.forward(referent=referent, correct_choice=1, utterances=e_descriptors)
+        #     # calculate cross entropy loss
+        #     loss = criterion(probs, labels)
+        #     # update
+        #     loss.backward()
+        #     optimizer_literal_speaker.step()
 
 
 def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recursion=5):

@@ -32,10 +32,5 @@ def get_literal_listener_training_data(df):
 
 # Literal Speaker data function
 
-
-# now we need to have something that maps hsl -> (list of) utterances
-
-
-
-
-# and something that maps utterance -> (list of) hsls 
+def get_literal_speaker_training_data(df):
+    return output, utterances # [referent, utterance_idx], list of utterances

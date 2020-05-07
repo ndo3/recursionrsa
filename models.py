@@ -79,14 +79,13 @@ class ChoiceRanker(nn.Module):
         
         
 class ReferentDescriber(nn.Module):
-    def __init__(self, input_dim=100, num_utterances=96, hidden_dim=100):
+    def __init__(self, num_utterances, input_dim=100, hidden_dim=100):
         super(ReferentDescriber, self).__init__()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim, num_utterances)
 
-    def forward(self, x):
-        print("JR TAG", x.shape)
-        x = F.relu(self.fc1(x))
+    def forward(self, referent):
+        x = F.relu(self.fc1(referent))
         x = self.fc2(x)
         
         return x
@@ -101,11 +100,9 @@ class LiteralSpeaker(nn.Module):
         self.type = "SPEAKER"
         self.reasoning = False
 
-    def forward(self, referent, correct_choice, utterances):
-        print("LITERALLY SPEAKING")
-        hi = self.referentEncoder(referent)
-        print("hi ", hi.shape, hi)
-        return F.softmax(self.referentDescriber(hi))  # Outputs a 1d prob dist over utterances
+    def forward(self, referent):
+        encoded_referent = self.referentEncoder(referent)
+        return F.softmax(self.referentDescriber(encoded_referent))  # Outputs a 1d prob dist over utterances
 
 
 class LiteralListener(nn.Module): #Listener0
