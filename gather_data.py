@@ -32,5 +32,5 @@ def get_literal_listener_training_data(df):
 
 # Literal Speaker data function
 
-def get_literal_speaker_training_data(df):
+def get_literal_speaker_training_data(df): #TODO: Josh implement this
     return output, utterances # [referent, utterance_idx], list of utterances
