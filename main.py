@@ -14,6 +14,8 @@ from spacy.tokenizer import Tokenizer
 from spacy.lang.en import English
 from itertools import *
 from sklearn import preprocessing
+import sys
+import pandas as pd
 
 nlp = English()
 tokenizer = Tokenizer(nlp.vocab)
@@ -68,7 +70,9 @@ all_train_utterances = traindata['utterances']
 # this variable is for all the possible utterances - so we can see the entire distribution
 all_utterances = list(getalldescriptors(data['utterances']))
 # print(all_utterances)
-all_colors = getallreferents(traindata.index.values)
+all_colors = getallreferents(traindata.index.values).astype(np.float32)
+# print(all_colors.dtype)
+# sys.exit()
 # encoding all the description
 le = preprocessing.LabelEncoder() #LabelEncoder for all the possible utterances
 transformed_utterances = le.fit_transform(all_utterances)
@@ -79,7 +83,7 @@ transformed_utterances = le.fit_transform(all_utterances)
 referent_encoder = ReferentEncoder()
 description_encoder = DescriptionEncoder(vocab_size=getvocabsize(data['utterances']))
 choice_ranker = ChoiceRanker("choiceranker", referent_encoder, description_encoder, num_descriptors=len(getalldescriptors(all_train_utterances)), num_referents=len(traindata))
-referent_describer = ReferentDescriber(input_dim=len(traindata), num_utterances=len(getalldescriptors(all_train_utterances)))
+referent_describer = ReferentDescriber(num_utterances=len(getalldescriptors(all_train_utterances)))
 # # instantiate the LiteralSpeaker and the LiteralListener
 l0 = LiteralListener("literallistener", choice_ranker)
 s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer)
@@ -98,38 +102,63 @@ optimizer_literal_speaker = optim.SGD(s0_parameters, lr=0.001, momentum=0.9)
 torch_all_colors = torch.from_numpy(all_colors)
 torch_all_descriptions = torch.from_numpy(transformed_utterances)
 
-
 # # Data
 NUM_EPOCHS = 10
 
 
-def train_literal_listener(all_referents, all_descriptors, model, epochs=NUM_EPOCHS):
+# THE OTHER DATA
+# {utterance -> [colors]}
+# with open("utterances_prob_better.pkl", "rb") as utterances_
+literal_training_data = pd.read_pickle("utterances_prob_better.pkl")
+literal_training_data = {le.transform([k])[0]: literal_training_data[k] for k in literal_training_data if k in all_utterances}
+
+
+
+
+def train_literal_listener(training_data, model, epochs=NUM_EPOCHS):
     for i in range(epochs):
-        for d_idx, description in enumerate(all_descriptors):
-            # e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
-            # e_descriptors = [description_encoder.forward(x) for x in torch_all_descriptions]
-            e_referents = referent_encoder.forward(torch_all_colors)
-            e_descriptors = description_encoder.forward(torch_all_descriptions)
-            # print(torch_all_colors.size(), e_referents.size())
-            # zero the parameters dimension
-            optimizer_literal_listener.zero_grad()
-            # clarify the dimensions here
-            probs = model.forward(encoded_referents=e_referents, descriptor_idx=d_idx, encoded_descriptors=e_descriptors)
-            # calculate the cross entropy loss
-            loss = criterion(probs, labels)
+        for correct_referent_idx, list_of_three_referents, descriptor in training_data:
+            e_referents = [referent_encoder.forward(x) for x in list_of_three_referents]
+            e_descriptor = description_encoder.forward(descriptor)
+            probs = model.forward(referent=referent, correct_choice=1, utterances=e_descriptors)
+
+            # calculate cross entropy loss
+            loss = criterion(probs, correct_referent_idx)
+
             # update
+            optimizer_literal_speaker.zero_grad()
             loss.backward()
-            optimizer_literal_listener.step()
+            optimizer_literal_speaker.step()
+
+
+    # for i in range(epochs):
+    #     for d_idx in range(len(torchified_descriptors)):
+    #         description = torchified_descriptors[d_idx]
+    #         e_referents = referent_encoder.forward(torchified_referents)
+    #         e_descriptors = description_encoder.forward(torchified_descriptors)
+    #         # zero the parameters dimension
+    #         optimizer_literal_listener.zero_grad()
+    #         # clarify the dimensions here
+    #         probs = model.forward(encoded_referents=e_referents, descriptor_idx=d_idx, encoded_descriptors=e_descriptors)
+    #         print(probs.shape)
+    #         sys.exit()
+    #         # calculate the cross entropy loss
+    #         loss = criterion(probs, labels)
+    #         # update
+    #         loss.backward()
+    #         optimizer_literal_listener.step()
 
 
 def train_literal_speaker(all_referents, all_descriptors, model, epochs=NUM_EPOCHS):
+
     for i in range(epochs):
         for r_idx, referent in enumerate(all_referents):
-            e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
+            # referent = referent.unsqueeze(0)
+            # e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
             e_descriptors = [description_encoder.forward(x) for x in torch_all_descriptions]
             # zero the parameters dimension
             optimizer_literal_speaker.zero_grad()
-            probs = model.forward(referents=e_referents, correct_choice=2, utterances=e_descriptors)
+            probs = model.forward(referent=referent, correct_choice=1, utterances=e_descriptors)
             # calculate cross entropy loss
             loss = criterion(probs, labels)
             # update
@@ -153,7 +182,7 @@ def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recur
 
 
 if __name__ == "__main__":
-    train_literal_listener(all_colors, all_train_utterances, l0)
-    train_literal_speaker(all_colors, all_train_utterances, s0)
+    train_literal_listener(torch_all_colors, torch_all_descriptions, l0)
+    # train_literal_speaker()
     for max_levels in range(5):
-        speakers, listeners = run_reasoning(l0, s0, all_train_utterances, levels_of_recursion=max_levels)
+        speakers, listeners = run_reaconing(l0, s0, all_train_utterances, levels_of_recursion=max_levels)

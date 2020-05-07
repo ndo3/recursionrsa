@@ -1,47 +1,41 @@
-import pandas as pd
 from collections import Counter
-import pickle
-from bs4 import BeautifulSoup
-from functools import reduce
+import pandas as pd
+import string
+from collections import namedtuple, defaultdict
+import csv
+import sys
+import torch
 
-f = open("../colors-in-context/outputs/color_samples.html", "r").read()
-soup = BeautifulSoup(f, features="html.parser")
+def get_data():
+    df = pd.read_csv("./data/filteredCorpus.csv")
+    df_filt = df[df['outcome']==True] # use only successful games
+    df_filt = df_filt[df_filt['role']=='speaker'] # use speaker utterances
+    df_filt = df_filt[df_filt['source']=='human'] # use speaker utterances
 
-rows = soup.find_all("tr")
+    # making a list of utterances that we want to use, so we can take these rows from df_filt
+    utt = df_filt['contents']
+    utt_filt = [u.lower() for u in utt if len(u.split()) == 1] # only use one word utterances
+    utt_filt = [u.translate(str.maketrans('', '', string.punctuation)) for u in utt_filt] # remove punctuation
+    utt_final = list((Counter(utt_filt) - Counter(set(utt_filt))).keys()) # use utterances that appear more than once
 
-rows = [r.find_all("td") for r in rows]
+    # df_filt = df_filt[df_filt['numCleanWords'] == 1]
+    df_filt['contents'] = df_filt['contents'].apply(lambda x: x.lower())
+    df_filt['contents'] = df_filt['contents'].apply(lambda x: x.translate(str.maketrans('', '', string.punctuation)))# filter to take out punctuation
+    df_final = df.loc[df['contents'].isin(utt_final)] # this is the dataset of all the games that we want to use
 
-colors = [list(map(lambda x: x.text, r)) for r in rows]
-colors = [c for c in colors if len(c) > 0]
+    return df_final
 
-hsls = [r[0] for r in colors]
+# Literal listener data function
 
-df = pd.DataFrame(index = hsls, columns = ['utterances'])
-df['utterances'] = [r[1:] for r in colors]
+def get_literal_listener_training_data(df):
+    return output # [correct_referent_idx, list_of_three_referents, descriptor]
 
-#pickle.dump(df, open("./data/colors_probs_better.pkl", "wb"))
-
-
-colors = [(c[0][1:-1].split(", "), c[1:]) for c in colors]
-colors = [((int(c[0][0]), int(c[0][1]), int(c[0][2])), c[1]) for c in colors]
-
-colors = [(c[1], c[0]) for c in colors]
-colors = [(c_inner, c[1]) for c in colors for c_inner in c[0]]
-colors_dict = {}
-for c in colors:
-    if c[0] in colors_dict:
-        colors_dict[c[0]] += [c[1]]
-    else:
-        colors_dict[c[0]] = [c[1]]
-
-pickle.dump(colors_dict, open("utterances_prob_better.pkl", "wb"))
+# Literal Speaker data function
 
 
+# now we need to have something that maps hsl -> (list of) utterances
 
 
 
 
-
-
-
-#pickle.dump(colors, open("./data/colors_probs_better.pkl", "wb"))
+# and something that maps utterance -> (list of) hsls 

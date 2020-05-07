@@ -4,6 +4,7 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import sys
 
 class ReferentEncoder(nn.Module):
     def __init__(self, input_dim=3, hidden_dim=100):
@@ -12,36 +13,37 @@ class ReferentEncoder(nn.Module):
         self.fc1 = nn.Linear(input_dim, hidden_dim)
 
     def forward(self, x):
-        x = self.fc1(x.float())
+        # x = self.fc1(x.float())
+        print("yeehaw: ", x)
+        x = self.fc1(x)
         return x
 
 class DescriptionEncoder(nn.Module):
     def __init__(self, vocab_size=96, embedding_dim=50, hidden_dim=100): # 96 = len(all_descriptors) in main.py
         super(DescriptionEncoder, self).__init__()
         self.hidden_dim = hidden_dim
+        self.embedding_dim = embedding_dim
         self.embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.lstm = nn.LSTM(embedding_dim, hidden_dim)
         self.fc1 = nn.Linear(hidden_dim, hidden_dim)
 
     def forward(self, x):
-        print("x: ", x)
         embeds = self.embeddings(x)
-        lstm_out, _ = self.lstm(embeds.view(1, -1, 50)) 
+        lstm_out, _ = self.lstm(embeds.view(1, -1, self.embedding_dim))
+        lstm_out = lstm_out[-1, :, :] # Only get the last hidden state. We don't care about the others
         x = self.fc1(lstm_out)
         return x
 
 
 class ChoiceRanker(nn.Module):
-    def __init__(self, name, referentEncoder, stringEncoder, hidden_referent=100, hidden_descriptor=100, num_descriptors=261, num_referents=100, hidden_size=100):
+    def __init__(self, name, hidden_referent=100, hidden_descriptor=100, num_referents=3, hidden_size=100):
         super(ChoiceRanker, self).__init__()
         # metadata
         self.name = name
-        self.referentEncoder = referentEncoder
-        self.stringEncoder = stringEncoder
         # instantiate the two weight matrices
-        self.referentWeights = nn.Linear(hidden_size, hidden_referent) #W4
-        self.descriptorWeights = nn.Linear(hidden_size, 1) # description is 1 dimensional
-        self.additionalLayer = nn.Linear(hidden_size, 1) # (1 because we are not doing batch)
+        self.referentWeights = nn.Linear(hidden_referent, hidden_size) #W4
+        self.descriptorWeights = nn.Linear(hidden_descriptor, hidden_size) # W5
+        self.additionalLayer = nn.Linear(hidden_size, num_referents) #W3
 
     def forward(self, referents, descriptor):
         """
@@ -51,7 +53,7 @@ class ChoiceRanker(nn.Module):
             => W4e1: hidden_size x num_referents
             ed: hidden_descriptor x 1
             W5: hidden_size x hidden_descriptor
-            => W5e1: hidden_size x 1
+            => W5ed: hidden_size x 1
             => W4e1 + W5ed :: (hidden_size x (num_referents))
 
             + () : hidden_size x num_referents 
@@ -63,17 +65,12 @@ class ChoiceRanker(nn.Module):
         descriptors: ,num_descriptors
         labels: ,num_referents
         """
-        # print("Referents old: ", referents)
-        # # print("Type: ", type(referents))
-        # # referents = torch.from_numpy(np.array([t.numpy() for t in referents]))
-        # # print("Referents new: ", referents)
-        print(referents.size(), descriptor.size()) # descriptorWeight [100 x 1], descriptor [96 x 1]
-        print(self.referentWeights(referents).size(), self.descriptorWeights(descriptor).size())
         x = self.referentWeights(referents) + self.descriptorWeights(descriptor)
         # ReLu it
         x = F.relu(x)
         # Then multiply by the additional layer w3
         x = self.additionalLayer(x)
+        print(x.shape)
         # Then softmax it
         x = F.softmax(x, dim=1)
         # Just outputting the end of equation (4) in the paper
@@ -88,8 +85,9 @@ class ReferentDescriber(nn.Module):
         self.fc2 = nn.Linear(hidden_dim, num_utterances)
 
     def forward(self, x):
-        x = F.relu(self.f1(x))
-        x = self.f2(x)
+        print("JR TAG", x.shape)
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
         
         return x
 
@@ -104,26 +102,25 @@ class LiteralSpeaker(nn.Module):
         self.reasoning = False
 
     def forward(self, referent, correct_choice, utterances):
-        return F.softmax(self.referentDescriber(self.referentEncoder(referent)[correct_choice]))  # Outputs a 1d prob dist over utterances
+        print("LITERALLY SPEAKING")
+        hi = self.referentEncoder(referent)
+        print("hi ", hi.shape, hi)
+        return F.softmax(self.referentDescriber(hi))  # Outputs a 1d prob dist over utterances
 
 
 class LiteralListener(nn.Module): #Listener0
-    def __init__(self, name, choice_ranker):
+    def __init__(self, name, choice_ranker, referent_encoder, descriptor_encoder):
         super(LiteralListener, self).__init__()
         self.name = name
         self.choice_ranker = choice_ranker
+        self.referent_encoder = referent_encoder
+        self.descriptor_encoder = descriptor_encoder
         self.type = "LISTENER"
         self.reasoning = False
 
-    def forward(self, encoded_referents, descriptor_idx, encoded_descriptors):
-        """
-        all_referents: num_referents x 3
-        all_descriptions: num_descriptions x 1
-        """
-        # TODO: Find a way to match up labels with correct referents
-        encoded_descriptor = encoded_descriptors[descriptor_idx]
-        print(descriptor_idx, encoded_descriptors.size())
-        print("Encoded descriptor dimension: ", encoded_descriptor.size())
+    def forward(self, referents, descriptor, descriptor_idx=None): # TODO what is this descriptor_idx?
+        encoded_referents = [self.referent_encoder(x) for x in referents]
+        encoded_descriptor = self.descriptor_enocder(descriptor)
         return self.choice_ranker.forward(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
         
 
