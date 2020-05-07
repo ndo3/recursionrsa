@@ -122,7 +122,7 @@ def train_literal_listener(all_referents, all_descriptors, model, epochs=NUM_EPO
             optimizer_literal_listener.step()
 
 
-def train_literal_speaker(e_referents, e_descriptors, model, epochs=NUM_EPOCHS):
+def train_literal_speaker(all_referents, all_descriptors, model, epochs=NUM_EPOCHS):
     for i in range(epochs):
         for r_idx, referent in enumerate(all_referents):
             e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
@@ -154,52 +154,6 @@ def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recur
 
 if __name__ == "__main__":
     train_literal_listener(all_colors, all_train_utterances, l0)
-
-
-
-
-
-
-
-# def train_literal(all_referents, all_descriptors, model):
-#     # print(all_descriptors)
-#     """
-#     model: can be any of the literal listener / literal speaker
-#     """
-#     n_train = len(all_referents)
-#     # turn all_referents and all_descriptors into tensor?
-#     # print(all_referents)
-#     all_referents = torch.from_numpy(all_referents)
-#     all_descriptors = torch.from_numpy(all_descriptors)
-
-#     # encoded
-#     encoded_descriptors = [description_encoder.forward(x) for x in all_descriptors]
-#     encoded_referents = [referent_encoder.forward(x for x in all_referents]
-#     # train
-#     for i_epoch in range(NUM_EPOCHS):
-#         for i_sample, sample in enumerate(all_referents):
-#             # alternative_ids = np.random.choice(n_train, size=2)
-#             # alternatives = [all_referents[i] for i in alternative_ids]
-#             # batch, batch_ids = alternatives + [sample], alternative_ids + [i_sample]
-#             # encoded_batch = [encoded_referents[i] for i in batch_ids]
-
-#             # if model.type == "LISTENER":
-#             #     # zero the parameters dimension
-#             #     optimizer_literal_listener.zero_grad()
-#             #     # clarify the dimensions here
-#             #     probs = model.forward(encoded_referents=encoded_batch, descriptor_idx=REFERENT_TO_CORRECT_DESCRIPTOR[i_sample], encoded_descriptors=encoded_descriptors)
-#             #     # calculate the cross entropy loss
-#             #     loss = criterion(probs, labels)
-#             #     # update
-#             #     loss.backward()
-#             #     optimizer_literal_listener.step()
-
-#             # elif model.type == "SPEAKER":
-#             #     # zero the parameters dimension
-#             #     optimizer_literal_speaker.zero_grad()
-#             #     probs = model.forward(referents=encoded_batch, correct_choice=2, utterances=encoded_descriptors)
-#             #     # calculate cross entropy loss
-#             #     loss = criterion(probs, labels)
-#             #     # update
-#             #     loss.backward()
-#             #     optimizer_literal_speaker.step()
+    train_literal_speaker(all_colors, all_train_utterances, s0)
+    for max_levels in range(5):
+        speakers, listeners = run_reasoning(l0, s0, all_train_utterances, levels_of_recursion=max_levels)
