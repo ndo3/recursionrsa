@@ -33,4 +33,13 @@ def get_literal_listener_training_data(df):
 # Literal Speaker data function
 
 def get_literal_speaker_training_data(df): #TODO: Josh implement this
+    output = []
+    utterances = {}
+    for row in df.iterrows():
+        utt = row['contents']
+        color = torch.tensor(row[['clickColH', 'clickColS', 'clickColL']])
+        if utt not in utterances:
+            utterances[utt] = len(utt)
+        output.append([color, utterances[utt]])
+
     return output, utterances # [referent, utterance_idx], list of utterances
