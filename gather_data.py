@@ -42,4 +42,4 @@ def get_literal_speaker_training_data(df): #TODO: Josh implement this
             utterances[utt] = len(utt)
         output.append([color, utterances[utt]])
 
-    return output, utterances # [referent, utterance_idx], list of utterances
+    return output, utterances # [referent, utterance_idx], {utterance: idx forall utterances}
