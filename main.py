@@ -102,20 +102,15 @@ torch_all_descriptions = torch.from_numpy(transformed_utterances)
 # # Data
 NUM_EPOCHS = 10
 
-def run_reasoning(literal_listener, literal_speaker, levels_of_recursion=5):
-    reasoning_speakers = []
-    reasoning_listeners = []
-    for i in range(levels_of_recursion):
-        if i == 0:
-            new_reasoning_listener = None
-            new_reasoning_speaker = None
-
 
 def train_literal_listener(all_referents, all_descriptors, model, epochs=NUM_EPOCHS):
     for i in range(epochs):
         for d_idx, description in enumerate(all_descriptors):
-            e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
-            e_descriptors = [description_encoder.forward(x) for x in torch_all_descriptions]
+            # e_referents = [referent_encoder.forward(x) for x in torch_all_colors]
+            # e_descriptors = [description_encoder.forward(x) for x in torch_all_descriptions]
+            e_referents = referent_encoder.forward(torch_all_colors)
+            e_descriptors = description_encoder.forward(torch_all_descriptions)
+            # print(torch_all_colors.size(), e_referents.size())
             # zero the parameters dimension
             optimizer_literal_listener.zero_grad()
             # clarify the dimensions here
@@ -141,6 +136,19 @@ def train_literal_speaker(e_referents, e_descriptors, model, epochs=NUM_EPOCHS):
             loss.backward()
             optimizer_literal_speaker.step()
 
+
+def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recursion=5):
+    speakers = {}
+    listeners = {}
+    for i in range(levels_of_recursion):
+        if i == 0:
+            listeners[0] = l0
+            speakers[0] = s0
+            continue # because i == 0 will mean that we're at literal speaker and listener level
+        else:
+            listeners[i] = ReasoningListener("l"+str(i), speakers[i-1])
+            speakers[i] = ReasoningSpeaker("s"+str(i), listeners[i], s0, utterances)
+    return speakers, listeners
 
 
 

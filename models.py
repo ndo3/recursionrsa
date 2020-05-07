@@ -63,10 +63,12 @@ class ChoiceRanker(nn.Module):
         descriptors: ,num_descriptors
         labels: ,num_referents
         """
-        print("Referents old: ", referents)
-        print("Type: ", type(referents))
-        referents = torch.from_numpy(np.array([t.numpy() for t in referents]))
-        print("Referents new: ", referents)
+        # print("Referents old: ", referents)
+        # # print("Type: ", type(referents))
+        # # referents = torch.from_numpy(np.array([t.numpy() for t in referents]))
+        # # print("Referents new: ", referents)
+        print(referents.size(), descriptor.size()) # descriptorWeight [100 x 1], descriptor [96 x 1]
+        print(self.referentWeights(referents).size(), self.descriptorWeights(descriptor).size())
         x = self.referentWeights(referents) + self.descriptorWeights(descriptor)
         # ReLu it
         x = F.relu(x)
@@ -120,6 +122,8 @@ class LiteralListener(nn.Module): #Listener0
         """
         # TODO: Find a way to match up labels with correct referents
         encoded_descriptor = encoded_descriptors[descriptor_idx]
+        print(descriptor_idx, encoded_descriptors.size())
+        print("Encoded descriptor dimension: ", encoded_descriptor.size())
         return self.choice_ranker.forward(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
         
 
