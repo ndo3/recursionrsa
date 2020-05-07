@@ -117,7 +117,7 @@ def calculate_accuracy(data, listener, speaker):
     return num_correct / len(data)
 
 
-def main():
+def main(training=True):
     # LOAD DATA
     print("Loading Data")
     data_df, label_encoder = get_data()
@@ -140,23 +140,31 @@ def main():
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
     s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer).to(device)
 
-    NUM_EPOCHS = 1
+    NUM_EPOCHS = 5
     smoothing_sigma = 2
     alpha = 0.5
     clip_bound = 20.
 
-    print("Training Literals")
-    literal_speaker_losses, literal_listener_losses = train_literals(literal_listener_training_data, literal_speaker_training_data, l0, s0, NUM_EPOCHS)
+    if training:
+        print("Training Literals")
+        literal_speaker_losses, literal_listener_losses = train_literals(literal_listener_training_data, literal_speaker_training_data, l0, s0, NUM_EPOCHS)
 
-    literal_listener_losses = np.clip(gaussian_filter1d(literal_listener_losses, sigma=smoothing_sigma), 0., clip_bound)
-    literal_speaker_losses = np.clip(gaussian_filter1d(literal_speaker_losses, sigma=smoothing_sigma), 0., clip_bound)
-    losses_df = pd.DataFrame({"Literal Speaker": literal_speaker_losses, "Literal Listener": literal_listener_losses})
-    losses_df["Number of Examples"] = pd.Series(np.arange(len(losses_df)))
-    losses_df = losses_df.melt(value_vars=["Literal Speaker", "Literal Listener"], id_vars="Number of Examples")
-    losses_df.columns = ["Number of Examples", "Type", "Loss"]
+        torch.save(s0.state_dict(), "literal_speaker.pth")
+        torch.save(l0.state_dict(), "literal_listener.pth")
 
-    sns.lineplot(y="Loss", x="Number of Examples", hue="Type", data=losses_df)
-    plt.savefig("losses.png")
+        literal_listener_losses = np.clip(gaussian_filter1d(literal_listener_losses, sigma=smoothing_sigma), 0., clip_bound)
+        literal_speaker_losses = np.clip(gaussian_filter1d(literal_speaker_losses, sigma=smoothing_sigma), 0., clip_bound)
+        losses_df = pd.DataFrame({"Literal Speaker": literal_speaker_losses, "Literal Listener": literal_listener_losses})
+        losses_df["Number of Examples"] = pd.Series(np.arange(len(losses_df)))
+        losses_df = losses_df.melt(value_vars=["Literal Speaker", "Literal Listener"], id_vars="Number of Examples")
+        losses_df.columns = ["Number of Examples", "Type", "Loss"]
+
+        sns.lineplot(y="Loss", x="Number of Examples", hue="Type", data=losses_df)
+        plt.savefig("losses.png")
+    else:
+        print("Loading Previously Saved Literal Weights")
+        s0.load_state_dict(torch.load("literal_speaker.pth"))
+        l0.load_state_dict(torch.load("literal_listener.pth"))
 
     s0.training = False
     l0.training = False
@@ -169,4 +177,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(training=True)
