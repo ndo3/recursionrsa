@@ -17,6 +17,9 @@ from sklearn import preprocessing
 import sys
 import pandas as pd
 from gather_data import get_data, get_literal_listener_training_data, get_literal_speaker_training_data
+from tqdm import trange, tqdm
+import matplotlib.pyplot as plt
+from scipy.ndimage.filters import gaussian_filter1d
 
 nlp = English()
 tokenizer = Tokenizer(nlp.vocab)
@@ -58,34 +61,42 @@ def getallreferents(ref_index):
 
 
 def train_literal_listener(training_data, model, epochs):
+    losses = []
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=5e-4)
     for i in range(epochs):
-        for correct_referent_idx, list_of_three_referents, descriptor in training_data:
-            probs = model.forward(referents=list_of_three_referents, descriptor=descriptors)
+        print("Epoch", i)
+        for correct_referent_idx, list_of_three_referents, descriptor in tqdm(training_data):
+            probs = model(referents=list_of_three_referents, descriptor=descriptor)
 
             # calculate cross entropy loss
-            loss = criterion(probs, correct_referent_idx)
+            loss = criterion(probs.unsqueeze(0), correct_referent_idx.unsqueeze(0))
+            losses.append(loss.item())
 
             # update
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+    return np.array(losses)
+
 
 def train_literal_speaker(training_data, model, epochs):
-
+    losses = []
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=5e-4)
     for i in range(epochs):
-        for referent, utterance_idx in training_data:
-            probs = model.forward(referent)
+        print("Epoch", i)
+        for referent, utterance_idx in tqdm(training_data):
+            probs = model(referent)
 
-            loss = criterion(probs, utterance_idx)
+            loss = criterion(probs.unsqueeze(0), utterance_idx.unsqueeze(0))
+            losses.append(loss.item())
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+    return np.array(losses)
 
 
 def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recursion=5):
@@ -104,26 +115,38 @@ def run_reasoning(literal_listener, literal_speaker, utterances, levels_of_recur
 
 def main():
     # LOAD DATA
-    data_df = get_data()
-    literal_speaker_training_data, utterances_dict = get_literal_speaker_training_data(data_df)
+    print("Loading Data")
+    data_df, label_encoder = get_data()
+    # data_df = data_df.head()
+    literal_speaker_training_data = get_literal_speaker_training_data(data_df)
     literal_listener_training_data = get_literal_listener_training_data(data_df)
 
 
+    print("Instantiating Models")
     # Instantiate Modules
     referent_encoder = ReferentEncoder()
-    description_encoder = DescriptionEncoder(vocab_size=len(utterances_dict))
+    description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.classes_))
     choice_ranker = ChoiceRanker("choiceranker")
-    referent_describer = ReferentDescriber(num_utterances=len(utterances_dict))
+    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_))
 
     # Instantiate Literal Speaker and Literal Listener
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder)
     s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer)
 
-    # Data
-    NUM_EPOCHS = 10
+    NUM_EPOCHS = 1
+    smoothing_sigma = 2
+    alpha = 0.5
+    print("Training Literal Litener")
+    literal_listener_losses = train_literal_listener(literal_listener_training_data, l0, epochs=NUM_EPOCHS)
+    plt.plot(gaussian_filter1d(literal_listener_losses, sigma=smoothing_sigma), alpha=alpha)
+    print("Training Literal Speaker")
+    literal_speaker_losses = train_literal_speaker(literal_speaker_training_data, s0, epochs=NUM_EPOCHS)
+    plt.plot(gaussian_filter1d(literal_speaker_losses, sigma=smoothing_sigma), alpha=alpha)
+    plt.legend(["Literal Listener", "Literal Speaker"])
+    plt.show()
 
-    train_literal_listener(literal_listener_training_data, l0, epochs=NUM_EPOCHS)
-    train_literal_speaker(literal_speaker_training_data, s0, epochs=NUM_EPOCHS)
+    s0.training = False
+    l0.training = False
 
 
 if __name__ == "__main__":

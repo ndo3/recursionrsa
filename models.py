@@ -13,8 +13,6 @@ class ReferentEncoder(nn.Module):
         self.fc1 = nn.Linear(input_dim, hidden_dim)
 
     def forward(self, x):
-        # x = self.fc1(x.float())
-        print("yeehaw: ", x)
         x = self.fc1(x)
         return x
 
@@ -43,7 +41,8 @@ class ChoiceRanker(nn.Module):
         # instantiate the two weight matrices
         self.referentWeights = nn.Linear(hidden_referent, hidden_size) #W4
         self.descriptorWeights = nn.Linear(hidden_descriptor, hidden_size) # W5
-        self.additionalLayer = nn.Linear(hidden_size, num_referents) #W3
+        self.additionalLayer = nn.Linear(hidden_size, 1) #W3, this is strange but it's how it's done in the paper
+        self.training = True
 
     def forward(self, referents, descriptor):
         """
@@ -70,11 +69,12 @@ class ChoiceRanker(nn.Module):
         x = F.relu(x)
         # Then multiply by the additional layer w3
         x = self.additionalLayer(x)
-        print(x.shape)
+        x = x.t()
         # Then softmax it
-        x = F.softmax(x, dim=1)
+        if not self.training:
+            x = F.softmax(x)
         # Just outputting the end of equation (4) in the paper
-        return x
+        return x[0]
 
         
         
@@ -99,10 +99,15 @@ class LiteralSpeaker(nn.Module):
         self.referentDescriber = referentDescriber
         self.type = "SPEAKER"
         self.reasoning = False
+        self.training = True
 
     def forward(self, referent):
         encoded_referent = self.referentEncoder(referent)
-        return F.softmax(self.referentDescriber(encoded_referent))  # Outputs a 1d prob dist over utterances
+        # return self.referentDescriber(encoded_referent)  # Outputs a 1d prob dist over utterances
+        out = self.referentDescriber(encoded_referent)  # Outputs a 1d prob dist over utterances
+        if not self.training:
+            out = F.softmax(out, dim=0)
+        return out
 
 
 class LiteralListener(nn.Module): #Listener0
@@ -116,9 +121,9 @@ class LiteralListener(nn.Module): #Listener0
         self.reasoning = False
 
     def forward(self, referents, descriptor, descriptor_idx=None): # TODO what is this descriptor_idx?
-        encoded_referents = [self.referent_encoder(x) for x in referents]
-        encoded_descriptor = self.descriptor_enocder(descriptor)
-        return self.choice_ranker.forward(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
+        encoded_referents = self.referent_encoder(referents)
+        encoded_descriptor = self.descriptor_encoder(descriptor)
+        return self.choice_ranker(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
         
 
 class ReasoningSpeaker(nn.Module):
