@@ -21,6 +21,8 @@ from tqdm import trange, tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 nlp = English()
 tokenizer = Tokenizer(nlp.vocab)
 
@@ -113,30 +115,27 @@ def main():
 
     print("Instantiating Models")
     # Instantiate Modules
-    referent_encoder = ReferentEncoder()
-    description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.classes_))
-    choice_ranker = ChoiceRanker("choiceranker")
-    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_))
+    referent_encoder = ReferentEncoder().to(device)
+    description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.classes_)).to(device)
+    choice_ranker = ChoiceRanker("choiceranker").to(device)
+    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_)).to(device)
 
     # Instantiate Literal Speaker and Literal Listener
-    l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder)
-    s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer)
+    l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
+    s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer).to(device)
 
     NUM_EPOCHS = 1
     smoothing_sigma = 2
     alpha = 0.5
 
-    # print("Training Literal Litener")
-    # literal_listener_losses = train_literal_listener(literal_listener_training_data, l0, epochs=NUM_EPOCHS)
-    # print("Training Literal Speaker")
-    # literal_speaker_losses = train_literal_speaker(literal_speaker_training_data, s0, epochs=NUM_EPOCHS)
     print("Training Literals")
     literal_speaker_losses, literal_listener_losses = train_literals(literal_listener_training_data, literal_speaker_training_data, l0, s0, NUM_EPOCHS)
     plt.plot(gaussian_filter1d(literal_listener_losses, sigma=smoothing_sigma), alpha=alpha)
     plt.plot(gaussian_filter1d(literal_speaker_losses, sigma=smoothing_sigma), alpha=alpha)
 
     plt.legend(["Literal Listener", "Literal Speaker"])
-    plt.show()
+    plt.title("Literal Training Losses (Lower is Better)")
+    plt.savefig("training_losses.png")
 
     s0.training = False
     l0.training = False

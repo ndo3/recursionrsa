@@ -9,6 +9,8 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 def get_data():
     df = pd.read_csv("./data/filteredCorpus.csv")
     df_filt = df[df['outcome']==True] # use only successful games
@@ -36,7 +38,7 @@ def get_data():
 def get_literal_listener_training_data(df):
     output = []
     for _, row in tqdm(df.iterrows(), total=len(df)):
-        utt = torch.tensor(row['contents'])
+        utt = torch.tensor(row['contents']).to(device)
         correct = torch.tensor(row[['clickColH', 'clickColS', 'clickColL']], dtype=torch.float32)
         alt1 = torch.tensor(row[['alt1ColH', 'alt1ColS', 'alt1ColL']], dtype=torch.float32)
         alt2 = torch.tensor(row[['alt2ColH', 'alt2ColS', 'alt2ColL']], dtype=torch.float32)
@@ -44,8 +46,8 @@ def get_literal_listener_training_data(df):
         # idxs = random.choice([0,1,2]) # randomly permute colors
         idxs = np.arange(3)
         np.random.shuffle(idxs)
-        colors_shuff = torch.stack([colors[idxs[0]], colors[idxs[1]], colors[idxs[2]]])
-        correct_idx = torch.tensor(idxs[0], dtype=torch.long) # index where correct color goes
+        colors_shuff = torch.stack([colors[idxs[0]], colors[idxs[1]], colors[idxs[2]]]).to(device)
+        correct_idx = torch.tensor(idxs[0], dtype=torch.long).to(device) # index where correct color goes
         output.append((correct_idx, colors_shuff, utt))
     return output # [correct_referent_idx, list_of_three_referents, descriptor]
 
@@ -54,8 +56,8 @@ def get_literal_listener_training_data(df):
 def get_literal_speaker_training_data(df):
     output = []
     for _, row in tqdm(df.iterrows(), total=len(df)):
-        utt = torch.tensor(row['contents'], dtype=torch.long)
-        color = torch.tensor(row[['clickColH', 'clickColS', 'clickColL']], dtype=torch.float32)
+        utt = torch.tensor(row['contents'], dtype=torch.long).to(device)
+        color = torch.tensor(row[['clickColH', 'clickColS', 'clickColL']], dtype=torch.float32).to(device)
         output.append([color, utt])
 
     return output # [referent, utterance_idx]
