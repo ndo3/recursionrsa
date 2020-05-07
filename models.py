@@ -42,7 +42,6 @@ class ChoiceRanker(nn.Module):
         self.referentWeights = nn.Linear(hidden_referent, hidden_size) #W4
         self.descriptorWeights = nn.Linear(hidden_descriptor, hidden_size) # W5
         self.additionalLayer = nn.Linear(hidden_size, 1) #W3, this is strange but it's how it's done in the paper
-        self.training = True
 
     def forward(self, referents, descriptor):
         """
@@ -71,8 +70,6 @@ class ChoiceRanker(nn.Module):
         x = self.additionalLayer(x)
         x = x.t()
         # Then softmax it
-        if not self.training:
-            x = F.softmax(x)
         # Just outputting the end of equation (4) in the paper
         return x[0]
 
@@ -119,11 +116,15 @@ class LiteralListener(nn.Module): #Listener0
         self.descriptor_encoder = descriptor_encoder
         self.type = "LISTENER"
         self.reasoning = False
+        self.training = True
 
     def forward(self, referents, descriptor, descriptor_idx=None): # TODO what is this descriptor_idx?
         encoded_referents = self.referent_encoder(referents)
         encoded_descriptor = self.descriptor_encoder(descriptor)
-        return self.choice_ranker(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
+        x =  self.choice_ranker(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
+        if not self.training:
+            x = F.softmax(x, dim=0)
+        return x
         
 
 class ReasoningSpeaker(nn.Module):
