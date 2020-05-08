@@ -100,8 +100,10 @@ class LiteralSpeaker(nn.Module):
 
     def forward(self, referent):
         encoded_referent = self.referentEncoder(referent)
+        # print("encoded referent size: ", encoded_referent.size())
         # return self.referentDescriber(encoded_referent)  # Outputs a 1d prob dist over utterances
         out = self.referentDescriber(encoded_referent)  # Outputs a 1d prob dist over utterances
+        # print("out size: ", out.size())
         if not self.training:
             out = F.softmax(out, dim=0)
         return out
@@ -118,7 +120,7 @@ class LiteralListener(nn.Module): #Listener0
         self.reasoning = False
         self.training = True
 
-    def forward(self, referents, descriptor, descriptor_idx=None): # TODO what is this descriptor_idx?
+    def forward(self, referents, descriptor, descriptor_idx=None, descriptors=None): # TODO what is this descriptor_idx?
         encoded_referents = self.referent_encoder(referents)
         encoded_descriptor = self.descriptor_encoder(descriptor)
         x =  self.choice_ranker(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
@@ -137,16 +139,17 @@ class ReasoningSpeaker(nn.Module):
         self.reasoning = True
 
     def forward(self, referents, correct_choice, utterances):
+        # print(self.name + " received forward call")
         referent = referents[correct_choice]
         # Select the utterance that makes the previous listener most maximize the correct referent (correct_choice) regularized by fluency
-        listener_prob_dist = torch.tensor([self.previousListener(descriptor, referents)[correct_choice] for descriptor in utterances]) # Prob(correct choice | descriptor). 1d vector of len num utterances
+        listener_prob_dist = torch.tensor([self.previousListener(referents, descriptor, descriptor_idx=list(utterances).index(descriptor), descriptors=utterances)[correct_choice] for descriptor in utterances]) # Prob(correct choice | descriptor). 1d vector of len num utterances
 
         # Fluency
-        speaker_prob_dist = self.literalSpeaker(referent) # Prob(utterance). 1d vector of len num utterances
-
+        speaker_prob_dist = self.literalSpeaker(referent) # Prob(utterance). 1d vector of len num utterance
         final_scores = listener_prob_dist * speaker_prob_dist # 1d vector of len num utterances.
         final_scores = F.softmax(final_scores)
         return final_scores # Outputs a 1d prob dist over utterances
+
 
 class ReasoningListener(nn.Module):
     def __init__(self, name, previousSpeaker):
@@ -156,9 +159,14 @@ class ReasoningListener(nn.Module):
         self.type = "LISTENER"
         self.reasoning = True
 
-    def forward(self, referents, descriptor_idx, encoded_descriptors):
+    def forward(self, referents, descriptor, descriptor_idx=None, descriptors=None):
         # Select the referent that makes the previous speaker most maximize the correct descriptor (descriptor_idx)
-        prob_dist = torch.tensor([self.previousSpeaker(referents, i)[descriptor_idx] for i in range(len(referents))])
+        print(self.name + " received forward call")
+        if self.previousSpeaker.reasoning:
+            prob_dist = torch.tensor([self.previousSpeaker(referents, i, torch.tensor(descriptors))[descriptor_idx] for i in range(len(referents))])
+        else:
+            prob_dist = torch.tensor([self.previousSpeaker(referent)[descriptor_idx] for referent in referents])
+
         prob_dist = F.softmax(prob_dist)
 
         return prob_dist # Outputs a 1d prob dist over referents
