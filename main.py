@@ -146,7 +146,10 @@ def plot_reasoning_data(level_to_accuracy):
     xs = sorted([k for k in level_to_accuracy])
     ys = [level_to_accuracy[k] for k in xs]
     plt.plot(xs, ys)
-    plt.show()
+    plt.title("Accuracy vs Number of Recursions")
+    plt.ylabel("Accuracy")
+    plt.xlabel("Number of Recursions")
+    plt.savefig("accuracy_vs_recursions.png")
 
 
 def calculate_accuracy(data, listener, speaker):
@@ -167,7 +170,7 @@ def main(training=True):
     data_df, label_encoder = get_data()
     encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
     # data_df = data_df.head()
-    # data_df = data_df[:500]
+    data_df = data_df[:100]
     training_split = 0.8
     training_df = data_df[:int(training_split * len(data_df))]
     testing_df = data_df[int(training_split * len(data_df)):]
@@ -223,11 +226,11 @@ def main(training=True):
     s0.training = False
     l0.training = False
 
-    training_accuracy = calculate_accuracy(literal_listener_training_data, l0, s0)
-    testing_dataset = get_literal_listener_training_data(testing_df)
-    testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
+    # training_accuracy = calculate_accuracy(literal_listener_training_data, l0, s0)
+    # testing_dataset = get_literal_listener_training_data(testing_df)
+    # testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
 
-    print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
+    # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     print(len(test_idx_to_desc), len(descriptors))
     result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)})
     plot_reasoning_data(result_dict)

@@ -9,7 +9,7 @@ import sys
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 device = 'cpu'
 
-DEBUG = True
+DEBUG = False
 
 class ReferentEncoder(nn.Module):
     def __init__(self, input_dim=3, hidden_dim=100):
@@ -104,6 +104,7 @@ class LiteralSpeaker(nn.Module):
         self.training = True
 
     def forward(self, referent, dynamic_dict=None):
+        # print("s0 forward")
         encoded_referent = self.referentEncoder(referent)
         out = self.referentDescriber(encoded_referent)  # Outputs a 1d prob dist over utterances
         if not self.training:
@@ -123,6 +124,7 @@ class LiteralListener(nn.Module): #Listener0
         self.training = True
 
     def forward(self, referents, descriptor, descriptor_idx=None, descriptors=None, dynamic_dict=None):
+        # print("l0 forward")
         if self.training:
             encoded_referents = self.referent_encoder(referents)
             encoded_descriptor = self.descriptor_encoder(descriptor)
@@ -151,11 +153,24 @@ class ReasoningSpeaker(nn.Module):
             #     print('hit listener')
             return dynamic_dict[(self.previousListener.name, referents, descriptor_idx)]
         else:
-            # if DEBUG:
-            #     print('missing listener', len(dynamic_dict))
+            if DEBUG:
+                print('missing', self.previousListener.name)
             prob = self.previousListener(referents, descriptor, descriptor_idx, descriptors, dynamic_dict=dynamic_dict)
             dynamic_dict[(self.previousListener.name, referents, descriptor_idx)] = prob
             assert (self.previousListener.name, referents, descriptor_idx) in dynamic_dict
+            return prob
+
+    def get_previous_literal_speaker_probs(self, referent, dynamic_dict):
+        if (self.literalSpeaker.name, tuple(referent.tolist())) in dynamic_dict:
+            # if DEBUG:
+            #     print('hit literal speaker')
+            return dynamic_dict[(self.literalSpeaker.name, tuple(referent.tolist()))]
+        else:
+            if DEBUG:
+                print('missing', self.literalSpeaker.name)
+            prob = self.literalSpeaker(referent)
+            dynamic_dict[(self.literalSpeaker.name, tuple(referent.tolist()))] = prob
+            assert (self.literalSpeaker.name, tuple(referent.tolist())) in dynamic_dict
             return prob
 
     def forward(self, referents, correct_choice, utterances, dynamic_dict=None):
@@ -166,7 +181,7 @@ class ReasoningSpeaker(nn.Module):
 
 
         # Fluency
-        speaker_prob_dist = self.literalSpeaker(referent) # Prob(utterance). 1d vector of len num utterance
+        speaker_prob_dist = self.get_previous_literal_speaker_probs(referent, dynamic_dict) # Prob(utterance). 1d vector of len num utterance
         final_scores = listener_prob_dist * speaker_prob_dist # 1d vector of len num utterances.
         final_scores = F.softmax(final_scores, dim=0)
         return final_scores # Outputs a 1d prob dist over utterances
@@ -182,12 +197,12 @@ class ReasoningListener(nn.Module):
 
     def get_previous_speaker_probs(self, referents, i, descriptors, dynamic_dict):
         if (self.previousSpeaker.name, referents, i, descriptors) in dynamic_dict:
-            if DEBUG:
-                print('hit reasoning speaker')
+            # if DEBUG:
+            #     print('hit reasoning speaker')
             return dynamic_dict[(self.previousSpeaker.name, referents, i, descriptors)]
         else:
-            # if DEBUG:
-            #     print('missing reasoning speaker')
+            if DEBUG:
+                print('missing', self.previousSpeaker.name)
             prob = self.previousSpeaker(referents, i, descriptors, dynamic_dict=dynamic_dict)
             dynamic_dict[(self.previousSpeaker.name, referents, i, descriptors)] = prob
             assert (self.previousSpeaker.name, referents, i, descriptors) in dynamic_dict
@@ -195,12 +210,12 @@ class ReasoningListener(nn.Module):
 
     def get_previous_literal_speaker_probs(self, referent, dynamic_dict):
         if (self.previousSpeaker.name, referent) in dynamic_dict:
-            if DEBUG:
-                print('hit literal speaker')
+            # if DEBUG:
+            #     print('hit literal speaker')
             return dynamic_dict[(self.previousSpeaker.name, referent)]
         else:
             if DEBUG:
-                print('missing literal speaker')
+                print('missing', self.previousSpeaker.name)
             prob = self.previousSpeaker(referent)
             dynamic_dict[(self.previousSpeaker.name, referent)] = prob
             assert (self.previousSpeaker.name, referent) in dynamic_dict
