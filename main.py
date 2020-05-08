@@ -172,7 +172,8 @@ def main(training=True):
     literal_listener_training_data  = get_literal_listener_training_data(training_df)
 
     literal_speaker_testing_data = get_literal_speaker_training_data(testing_df)
-    pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(testing_df)
+    # pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(testing_df)
+    pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(training_df)
 
 
 
@@ -187,7 +188,7 @@ def main(training=True):
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
     s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer).to(device)
 
-    NUM_EPOCHS = 100
+    NUM_EPOCHS = 20
     smoothing_sigma = 2
     alpha = 0.5
     clip_bound = 20.
@@ -216,6 +217,7 @@ def main(training=True):
         else:
             s0.load_state_dict(torch.load("literal_speaker.pth"))
             l0.load_state_dict(torch.load("literal_listener.pth"))
+            sys.exit()
 
     s0.training = False
     l0.training = False
