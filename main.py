@@ -188,7 +188,7 @@ def main(training=True):
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
     s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer).to(device)
 
-    NUM_EPOCHS = 20
+    NUM_EPOCHS = 100
     smoothing_sigma = 2
     alpha = 0.5
     clip_bound = 20.
@@ -209,6 +209,7 @@ def main(training=True):
 
         sns.lineplot(y="Loss", x="Number of Examples", hue="Type", data=losses_df)
         plt.savefig("losses.png")
+        sys.exit()
     else:
         print("Loading Previously Saved Literal Weights")
         if device == 'cpu':
@@ -217,7 +218,6 @@ def main(training=True):
         else:
             s0.load_state_dict(torch.load("literal_speaker.pth"))
             l0.load_state_dict(torch.load("literal_listener.pth"))
-            sys.exit()
 
     s0.training = False
     l0.training = False
