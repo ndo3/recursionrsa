@@ -10,6 +10,7 @@ from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = 'cpu'
 
 def get_data():
     df = pd.read_csv("./data/filteredCorpus.csv")

@@ -23,6 +23,7 @@ from scipy.ndimage.filters import gaussian_filter1d
 import seaborn as sns
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = 'cpu'
 sns.set_style("darkgrid")
 
 nlp = English()
@@ -112,18 +113,30 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     """
     reasoning_data = 0
     result_dict = {}
+    dynamic_dict = {}
     print("Num utterances: ", len(all_utterances))
     for i in range(0, 12, 2):
         print("Max level: ", i)
         speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i)
-        print(speakers, listeners)
+        # print(speakers, listeners)
         num_correct = 0.
-        for correct_referent_idx, list_of_three_referents, descriptor_idx in pragmatic_listener_testing_data:
+        num_all = 0.
+        for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
             # grab the last listener distribution
-            prob_dist = listeners[i](referents=list_of_three_referents, descriptor=torch.tensor(d_idx_to_descriptor[int(descriptor_idx)]), descriptor_idx=descriptor_idx, descriptors=all_utterances) #TODO: Change the descriptor_idx value
+            if i == 0:
+                prob_dist = listeners[i](referents=list_of_three_referents, descriptor=torch.tensor(d_idx_to_descriptor[int(descriptor_idx)], device=device), descriptor_idx=descriptor_idx, descriptors=all_utterances)
+            else:
+                prob_dist = listeners[i](referents=list_of_three_referents, descriptor=torch.tensor(d_idx_to_descriptor[int(descriptor_idx)], device=device), descriptor_idx=descriptor_idx, descriptors=all_utterances, dynamic_dict=dynamic_dict) #TODO: Change the descriptor_idx value
+
+
             r_idx = torch.argmax(prob_dist)
             if r_idx == correct_referent_idx:
                 num_correct += 1.
+            num_all += 1.
+            # print(num_all, i)
+            # if num_all > 10 and i > 0:
+            #     print("\n\n\n\n\n\n\n\n\n\n")
+            #     sys.exit()
         result_dict[i] = num_correct / len(pragmatic_listener_testing_data)
     print(result_dict)
     return result_dict
@@ -153,7 +166,6 @@ def main(training=True):
     print("Loading Data")
     data_df, label_encoder = get_data()
     encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
-    # sys.exit()
     # data_df = data_df.head()
     training_split = 0.8
     training_df = data_df[:int(training_split * len(data_df))]
@@ -200,8 +212,12 @@ def main(training=True):
         plt.savefig("losses.png")
     else:
         print("Loading Previously Saved Literal Weights")
-        s0.load_state_dict(torch.load("literal_speaker.pth", map_location=torch.device('cpu')))
-        l0.load_state_dict(torch.load("literal_listener.pth", map_location=torch.device('cpu')))
+        if device == 'cpu':
+            s0.load_state_dict(torch.load("literal_speaker.pth", map_location=torch.device('cpu')))
+            l0.load_state_dict(torch.load("literal_listener.pth", map_location=torch.device('cpu')))
+        else:
+            s0.load_state_dict(torch.load("literal_speaker.pth"))
+            l0.load_state_dict(torch.load("literal_listener.pth"))
 
     s0.training = False
     l0.training = False
@@ -212,7 +228,7 @@ def main(training=True):
 
     print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     print(len(test_idx_to_desc), len(descriptors))
-    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, encoded_distinct_utterances, {i: u for i, u in enumerate(encoded_distinct_utterances)})
+    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)})
     plot_reasoning_data(result_dict)
 
 
