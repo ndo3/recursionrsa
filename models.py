@@ -118,7 +118,7 @@ class LiteralListener(nn.Module): #Listener0
         self.reasoning = False
         self.training = True
 
-    def forward(self, referents, descriptor, descriptor_idx=None): # TODO what is this descriptor_idx?
+    def forward(self, referents, descriptor, descriptor_idx=None, descriptors=None): # TODO what is this descriptor_idx?
         encoded_referents = self.referent_encoder(referents)
         encoded_descriptor = self.descriptor_encoder(descriptor)
         x =  self.choice_ranker(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
@@ -148,6 +148,7 @@ class ReasoningSpeaker(nn.Module):
         final_scores = F.softmax(final_scores)
         return final_scores # Outputs a 1d prob dist over utterances
 
+
 class ReasoningListener(nn.Module):
     def __init__(self, name, previousSpeaker):
         super(ReasoningListener, self).__init__()
@@ -156,7 +157,7 @@ class ReasoningListener(nn.Module):
         self.type = "LISTENER"
         self.reasoning = True
 
-    def forward(self, referents, descriptor_idx, encoded_descriptors):
+    def forward(self, referents, descriptor, descriptor_idx=None, descriptors=None):
         # Select the referent that makes the previous speaker most maximize the correct descriptor (descriptor_idx)
         prob_dist = torch.tensor([self.previousSpeaker(referents, i)[descriptor_idx] for i in range(len(referents))])
         prob_dist = F.softmax(prob_dist)
