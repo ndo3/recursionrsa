@@ -9,7 +9,7 @@ import sys
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 device = 'cpu'
 
-DEBUG = False
+DEBUG = True
 
 class ReferentEncoder(nn.Module):
     def __init__(self, input_dim=3, hidden_dim=100):
@@ -145,15 +145,17 @@ class ReasoningSpeaker(nn.Module):
         self.reasoning = True
 
     def get_previous_listener_probs(self, referents, descriptor, descriptor_idx, descriptors, dynamic_dict):
-        if (self.previousListener.name, referents, descriptor, descriptor_idx, descriptors) in dynamic_dict:
-            if DEBUG:
-                print('hit listener')
-            return dynamic_dict[(self.previousListener.name, referents, descriptor, descriptor_idx, descriptors)]
+        assert descriptor_idx == descriptor
+        if (self.previousListener.name, referents, descriptor_idx) in dynamic_dict:
+            # if DEBUG:
+            #     print('hit listener')
+            return dynamic_dict[(self.previousListener.name, referents, descriptor_idx)]
         else:
-            if DEBUG:
-                print('missing listener', len(dynamic_dict))
+            # if DEBUG:
+            #     print('missing listener', len(dynamic_dict))
             prob = self.previousListener(referents, descriptor, descriptor_idx, descriptors, dynamic_dict=dynamic_dict)
-            dynamic_dict[(self.previousListener.name, referents, descriptor, descriptor_idx, descriptors)] = prob
+            dynamic_dict[(self.previousListener.name, referents, descriptor_idx)] = prob
+            assert (self.previousListener.name, referents, descriptor_idx) in dynamic_dict
             return prob
 
     def forward(self, referents, correct_choice, utterances, dynamic_dict=None):
@@ -184,10 +186,11 @@ class ReasoningListener(nn.Module):
                 print('hit reasoning speaker')
             return dynamic_dict[(self.previousSpeaker.name, referents, i, descriptors)]
         else:
-            if DEBUG:
-                print('missing reasoning speaker')
+            # if DEBUG:
+            #     print('missing reasoning speaker')
             prob = self.previousSpeaker(referents, i, descriptors, dynamic_dict=dynamic_dict)
             dynamic_dict[(self.previousSpeaker.name, referents, i, descriptors)] = prob
+            assert (self.previousSpeaker.name, referents, i, descriptors) in dynamic_dict
             return prob
 
     def get_previous_literal_speaker_probs(self, referent, dynamic_dict):
@@ -200,6 +203,7 @@ class ReasoningListener(nn.Module):
                 print('missing literal speaker')
             prob = self.previousSpeaker(referent)
             dynamic_dict[(self.previousSpeaker.name, referent)] = prob
+            assert (self.previousSpeaker.name, referent) in dynamic_dict
             return prob
 
     def forward(self, referents, descriptor, descriptor_idx=None, descriptors=None, dynamic_dict=None):
@@ -207,7 +211,7 @@ class ReasoningListener(nn.Module):
         if self.previousSpeaker.reasoning:
             prob_dist = torch.tensor([self.get_previous_speaker_probs(referents, i, descriptors, dynamic_dict=dynamic_dict)[descriptor_idx] for i in range(len(referents))], device=device)
         else:
-            prob_dist = torch.tensor([self.get_previous_literal_speaker_probs[descriptor_idx] for referent in referents], device=device)
+            prob_dist = torch.tensor([self.get_previous_literal_speaker_probs(descriptor_idx) for referent in referents], device=device)
 
         prob_dist = F.softmax(prob_dist, dim=0)
 

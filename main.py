@@ -167,6 +167,7 @@ def main(training=True):
     data_df, label_encoder = get_data()
     encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
     # data_df = data_df.head()
+    # data_df = data_df[:500]
     training_split = 0.8
     training_df = data_df[:int(training_split * len(data_df))]
     testing_df = data_df[int(training_split * len(data_df)):]
