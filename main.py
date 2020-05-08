@@ -16,7 +16,7 @@ from itertools import *
 from sklearn import preprocessing
 import sys
 import pandas as pd
-from gather_data import get_data, get_literal_listener_training_data, get_literal_speaker_training_data
+from gather_data import get_data, get_literal_listener_training_data, get_literal_speaker_training_data, get_pragmatic_listener_testing_data
 from tqdm import trange, tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
@@ -114,11 +114,12 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     reasoning_data = 0
     result_dict = {}
     for i in [1, 3, 5, 7, 9, 11, 13, 15]: # considering l0, l2, l4, l6, l8, l10, l12, l14
-        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_uterances)
+        print("Max level: ", i)
+        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances)
         num_correct = 0.
         for correct_referent_idx, list_of_three_referents, descriptor_idx in pragmatic_listener_testing_data:
             # grab the last listener distribution
-            prob_dist = listener[i](referents=list_of_three_referents, descriptor=d_idex_to_descriptor[descriptor_idx], descriptor_idx=descriptor_idx, descriptors=all_utterances) #TODO: Change the descriptor_idx value
+            prob_dist = listeners[i](referents=list_of_three_referents, descriptor=d_idx_to_descriptor[int(descriptor_idx)], descriptor_idx=descriptor_idx, descriptors=all_utterances) #TODO: Change the descriptor_idx value
             r_idx = torch.argmax(prob_dist)
             if r_idx == correct_referent_idx:
                 num_correct += 1.
@@ -131,8 +132,6 @@ def plot_reasoning_data(level_to_accuracy):
     ys = [level_to_accuracy[k] for k in xs]
     plt.plot(xs, ys)
     plt.show()
-
-
 
 
 def calculate_accuracy(data, listener, speaker):
@@ -156,10 +155,10 @@ def main(training=True):
     training_df = data_df[:int(training_split * len(data_df))]
     testing_df = data_df[int(training_split * len(data_df)):]
     literal_speaker_training_data = get_literal_speaker_training_data(training_df)
-    literal_listener_training_data, _, _  = get_literal_listener_training_data(training_df)
+    literal_listener_training_data  = get_literal_listener_training_data(training_df)
 
     literal_speaker_testing_data = get_literal_speaker_training_data(testing_df)
-    literal_listener_testing_data, descriptors, test_idx_to_desc = get_literal_listener_training_data(testing_df)
+    pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(testing_df)
 
 
     print("Instantiating Models")

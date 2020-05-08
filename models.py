@@ -139,7 +139,7 @@ class ReasoningSpeaker(nn.Module):
     def forward(self, referents, correct_choice, utterances):
         referent = referents[correct_choice]
         # Select the utterance that makes the previous listener most maximize the correct referent (correct_choice) regularized by fluency
-        listener_prob_dist = torch.tensor([self.previousListener(descriptor, referents)[correct_choice] for descriptor in utterances]) # Prob(correct choice | descriptor). 1d vector of len num utterances
+        listener_prob_dist = torch.tensor([self.previousListener(referents, descriptor)[correct_choice] for descriptor in utterances]) # Prob(correct choice | descriptor). 1d vector of len num utterances
 
         # Fluency
         speaker_prob_dist = self.literalSpeaker(referent) # Prob(utterance). 1d vector of len num utterances
@@ -159,7 +159,18 @@ class ReasoningListener(nn.Module):
 
     def forward(self, referents, descriptor, descriptor_idx=None, descriptors=None):
         # Select the referent that makes the previous speaker most maximize the correct descriptor (descriptor_idx)
-        prob_dist = torch.tensor([self.previousSpeaker(referents, i)[descriptor_idx] for i in range(len(referents))])
+        print(self.name + " received forward call")
+        if self.previousSpeaker.reasoning:
+            prob_dist = torch.tensor([self.previousSpeaker(referents, i, descriptors)[descriptor_idx] for i in range(len(referents))])
+        else:
+            print("referents:", referents, type(referents))
+            print("referent[0] type: ", type(referents[0]))
+            print("referents[0]: ", referents[0])
+            print(type(referents[0]))
+            print("previous speaker result: ", self.previousSpeaker(referents[0]))
+            print("indexing into it: ", self.previousSpeaker(referents[0])[0])
+            prob_dist = torch.tensor([self.previousSpeaker(referent)[descriptor_idx] for referent in referents])
+
         prob_dist = F.softmax(prob_dist)
 
         return prob_dist # Outputs a 1d prob dist over referents
