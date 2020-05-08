@@ -196,8 +196,8 @@ def main(training=True):
         plt.savefig("losses.png")
     else:
         print("Loading Previously Saved Literal Weights")
-        s0.load_state_dict(torch.load("literal_speaker.pth"))
-        l0.load_state_dict(torch.load("literal_listener.pth"))
+        s0.load_state_dict(torch.load("literal_speaker.pth", map_location=torch.device('cpu')))
+        l0.load_state_dict(torch.load("literal_listener.pth", map_location=torch.device('cpu')))
 
     s0.training = False
     l0.training = False

@@ -37,7 +37,7 @@ def get_data():
 
 def get_literal_listener_training_data(df):
     output = []
-    all_utt = df['contents']
+    all_utt = list(df['contents'])
     idx_to_desc = {i: u for i,u in enumerate(all_utt)}
     for _, row in tqdm(df.iterrows(), total=len(df)):
         utt = torch.tensor(row['contents']).to(device)
