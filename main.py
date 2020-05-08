@@ -120,7 +120,6 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
         speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i)
         # print(speakers, listeners)
         num_correct = 0.
-        num_all = 0.
         for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
             # grab the last listener distribution
             if i == 0:
@@ -132,11 +131,6 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
             r_idx = torch.argmax(prob_dist)
             if r_idx == correct_referent_idx:
                 num_correct += 1.
-            num_all += 1.
-            # print(num_all, i)
-            # if num_all > 10 and i > 0:
-            #     print("\n\n\n\n\n\n\n\n\n\n")
-            #     sys.exit()
         result_dict[i] = num_correct / len(pragmatic_listener_testing_data)
     print(result_dict)
     return result_dict
@@ -170,7 +164,7 @@ def main(training=True):
     data_df, label_encoder = get_data()
     encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
     # data_df = data_df.head()
-    data_df = data_df[:100]
+    data_df = data_df[:500]
     training_split = 0.8
     training_df = data_df[:int(training_split * len(data_df))]
     testing_df = data_df[int(training_split * len(data_df)):]

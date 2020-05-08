@@ -148,6 +148,8 @@ class ReasoningSpeaker(nn.Module):
 
     def get_previous_listener_probs(self, referents, descriptor, descriptor_idx, descriptors, dynamic_dict):
         assert descriptor_idx == descriptor
+        if dynamic_dict is None:
+            return self.previousListener(referents, descriptor, descriptor_idx, descriptors, dynamic_dict=dynamic_dict)
         if (self.previousListener.name, referents, descriptor_idx) in dynamic_dict:
             # if DEBUG:
             #     print('hit listener')
@@ -161,6 +163,8 @@ class ReasoningSpeaker(nn.Module):
             return prob
 
     def get_previous_literal_speaker_probs(self, referent, dynamic_dict):
+        if dynamic_dict is None:
+            return self.literalSpeaker(referent)
         if (self.literalSpeaker.name, tuple(referent.tolist())) in dynamic_dict:
             # if DEBUG:
             #     print('hit literal speaker')
@@ -196,6 +200,8 @@ class ReasoningListener(nn.Module):
         self.reasoning = True
 
     def get_previous_speaker_probs(self, referents, i, descriptors, dynamic_dict):
+        if dynamic_dict is None:
+            return self.previousSpeaker(referents, i, descriptors, dynamic_dict=dynamic_dict)
         if (self.previousSpeaker.name, referents, i, descriptors) in dynamic_dict:
             # if DEBUG:
             #     print('hit reasoning speaker')
@@ -209,6 +215,8 @@ class ReasoningListener(nn.Module):
             return prob
 
     def get_previous_literal_speaker_probs(self, referent, dynamic_dict):
+        if dynamic_dict is None:
+            return self.previousSpeaker(referent)
         if (self.previousSpeaker.name, referent) in dynamic_dict:
             # if DEBUG:
             #     print('hit literal speaker')
