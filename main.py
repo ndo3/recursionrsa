@@ -93,14 +93,13 @@ def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs
     return np.array(speaker_losses), np.array(listener_losses)
 
 
-def create_reasoning_entities(literal_listener, literal_speaker, utterances, levels_of_recursion=5):
+def create_reasoning_entities(literal_listener, literal_speaker, utterances, levels_of_recursion):
     speakers = {}
     listeners = {}
-    for i in range(levels_of_recursion):
+    for i in range(0, levels_of_recursion+1):
         if i == 0:
             listeners[0] = literal_listener
             speakers[0] = literal_speaker
-            continue # because i == 0 will mean that we're at literal speaker and listener level
         else:
             listeners[i] = ReasoningListener("l"+str(i), speakers[i-1])
             speakers[i] = ReasoningSpeaker("s"+str(i), listeners[i-1], speakers[0], utterances)
@@ -113,17 +112,20 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     """
     reasoning_data = 0
     result_dict = {}
-    for i in [1, 3, 5, 7, 9, 11, 13, 15]: # considering l0, l2, l4, l6, l8, l10, l12, l14
+    print("Num utterances: ", len(all_utterances))
+    for i in range(0, 12, 2):
         print("Max level: ", i)
-        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances)
+        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i)
+        print(speakers, listeners)
         num_correct = 0.
         for correct_referent_idx, list_of_three_referents, descriptor_idx in pragmatic_listener_testing_data:
             # grab the last listener distribution
-            prob_dist = listeners[i](referents=list_of_three_referents, descriptor=d_idx_to_descriptor[int(descriptor_idx)], descriptor_idx=descriptor_idx, descriptors=all_utterances) #TODO: Change the descriptor_idx value
+            prob_dist = listeners[i](referents=list_of_three_referents, descriptor=torch.tensor(d_idx_to_descriptor[int(descriptor_idx)]), descriptor_idx=descriptor_idx, descriptors=all_utterances) #TODO: Change the descriptor_idx value
             r_idx = torch.argmax(prob_dist)
             if r_idx == correct_referent_idx:
                 num_correct += 1.
         result_dict[i] = num_correct / len(pragmatic_listener_testing_data)
+    print(result_dict)
     return result_dict
 
 
@@ -150,6 +152,8 @@ def main(training=True):
     # LOAD DATA
     print("Loading Data")
     data_df, label_encoder = get_data()
+    encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
+    # sys.exit()
     # data_df = data_df.head()
     training_split = 0.8
     training_df = data_df[:int(training_split * len(data_df))]
@@ -159,6 +163,7 @@ def main(training=True):
 
     literal_speaker_testing_data = get_literal_speaker_training_data(testing_df)
     pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(testing_df)
+
 
 
     print("Instantiating Models")
@@ -206,8 +211,8 @@ def main(training=True):
     testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
     
     print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
-    
-    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, descriptors, test_idx_to_desc)
+    print(len(test_idx_to_desc), len(descriptors))
+    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, encoded_distinct_utterances, {i: u for i, u in enumerate(encoded_distinct_utterances)})
     plot_reasoning_data(result_dict)
 
 
