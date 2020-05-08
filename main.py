@@ -73,10 +73,10 @@ def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs
     speaker_criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam([x for x in l0.parameters()] + [x for x in s0.parameters()], lr=5e-4)
     zipped_data = [x for x in zip(listener_training_data, speaker_training_data)]
-    for i in range(epochs):
-        print("Epoch", i)
+    for i in trange(epochs):
+        # print("Epoch", i)
         np.random.shuffle(zipped_data)
-        for (correct_referent_idx, list_of_three_referents, descriptor), (referent, utterance_idx) in tqdm(zipped_data, total=len(listener_training_data)):
+        for (correct_referent_idx, list_of_three_referents, descriptor), (referent, utterance_idx) in zipped_data:
             listener_probs = l0(referents=list_of_three_referents, descriptor=descriptor)
             listener_loss = listener_criterion(listener_probs.unsqueeze(0), correct_referent_idx.unsqueeze(0))
             listener_losses.append(listener_loss.item())
@@ -141,7 +141,7 @@ def main(training=True):
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
     s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer).to(device)
 
-    NUM_EPOCHS = 50
+    NUM_EPOCHS = 100
     smoothing_sigma = 2
     alpha = 0.5
     clip_bound = 20.
@@ -173,7 +173,7 @@ def main(training=True):
     training_accuracy = calculate_accuracy(literal_listener_training_data, l0, s0)
     testing_dataset = get_literal_listener_training_data(testing_df)
     testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
-    
+
     print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
 
 
