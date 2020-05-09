@@ -10,24 +10,25 @@ import torch.optim as optim
 # data loading
 import pickle
 import numpy as np
-from spacy.tokenizer import Tokenizer
-from spacy.lang.en import English
+#from spacy.tokenizer import Tokenizer
+#from spacy.lang.en import English
 from itertools import *
-from sklearn import preprocessing
+#from sklearn import preprocessing
 import sys
 import pandas as pd
 from gather_data import get_data, get_literal_listener_training_data, get_literal_speaker_training_data, get_pragmatic_listener_testing_data
 from tqdm import trange, tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
-import seaborn as sns
+#import seaborn as sns
+import sys
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 device = 'cpu'
-sns.set_style("darkgrid")
+#sns.set_style("darkgrid")
 
-nlp = English()
-tokenizer = Tokenizer(nlp.vocab)
+#nlp = English()
+#okenizer = Tokenizer(nlp.vocab)
 
 def train_literal_listener(training_data, model, epochs):
     losses = []
@@ -94,7 +95,7 @@ def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs
     return np.array(speaker_losses), np.array(listener_losses)
 
 
-def create_reasoning_entities(literal_listener, literal_speaker, utterances, levels_of_recursion):
+def create_reasoning_entities(literal_listener, literal_speaker, utterances, levels_of_recursion, speaker_alpha = 1):
     speakers = {}
     listeners = {}
     for i in range(0, levels_of_recursion+1):
@@ -103,13 +104,13 @@ def create_reasoning_entities(literal_listener, literal_speaker, utterances, lev
             speakers[0] = literal_speaker
         else:
             listeners[i] = ReasoningListener("l"+str(i), speakers[i-1])
-            speakers[i] = ReasoningSpeaker("s"+str(i), listeners[i-1], speakers[0], utterances)
+            speakers[i] = ReasoningSpeaker("s"+str(i), listeners[i-1], speakers[0], utterances, alpha = speaker_alpha)
     return speakers, listeners
 
 
-def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_speaker, all_utterances, d_idx_to_descriptor):
+def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_speaker, all_utterances, d_idx_to_descriptor, speaker_alpha = 1):
     """
-    Assumption: pragmatic listener testing data: 
+    Assumption: pragmatic listener testing data:
     """
     reasoning_data = 0
     result_dict = {}
@@ -117,7 +118,7 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     print("Num utterances: ", len(all_utterances))
     for i in range(0, 12, 2):
         print("Max level: ", i)
-        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i)
+        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i, speaker_alpha = speaker_alpha)
         # print(speakers, listeners)
         num_correct = 0.
         for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
@@ -132,7 +133,12 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
             if r_idx == correct_referent_idx:
                 num_correct += 1.
         result_dict[i] = num_correct / len(pragmatic_listener_testing_data)
-    print(result_dict)
+    print("results: ", result_dict)
+    with open("alpha_results.txt", "a") as f:
+        f.write(str(speaker_alpha))
+        f.write(" ")
+        f.write(str(result_dict))
+        f.write("\n")
     return result_dict
 
 
@@ -159,10 +165,13 @@ def calculate_accuracy(data, listener, speaker):
 
 
 def main(training=True):
+
+
+
     # LOAD DATA
     print("Loading Data")
-    data_df, label_encoder = get_data()
-    encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
+    data_df, label_encoder, label_decoder = get_data()
+    encoded_distinct_utterances = label_encoder.values() #encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
     # data_df = data_df.head()
     data_df = data_df[:500]
     training_split = 0.8
@@ -180,9 +189,9 @@ def main(training=True):
     print("Instantiating Models")
     # Instantiate Modules
     referent_encoder = ReferentEncoder().to(device)
-    description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.classes_)).to(device)
+    description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.keys())).to(device)
     choice_ranker = ChoiceRanker("choiceranker").to(device)
-    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_)).to(device)
+    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.keys())).to(device)
 
     # Instantiate Literal Speaker and Literal Listener
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
@@ -190,7 +199,7 @@ def main(training=True):
 
     NUM_EPOCHS = 100
     smoothing_sigma = 2
-    alpha = 0.5
+    alpha = float(sys.argv[1])
     clip_bound = 20.
 
     if training:
@@ -207,8 +216,8 @@ def main(training=True):
         losses_df = losses_df.melt(value_vars=["Literal Speaker", "Literal Listener"], id_vars="Number of Examples")
         losses_df.columns = ["Number of Examples", "Type", "Loss"]
 
-        sns.lineplot(y="Loss", x="Number of Examples", hue="Type", data=losses_df)
-        plt.savefig("losses.png")
+        #sns.lineplot(y="Loss", x="Number of Examples", hue="Type", data=losses_df)
+        #plt.savefig("losses.png")
         sys.exit()
     else:
         print("Loading Previously Saved Literal Weights")
@@ -228,7 +237,8 @@ def main(training=True):
 
     # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     print(len(test_idx_to_desc), len(descriptors))
-    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)})
+    tensor_encoded_distinct_utterances = torch.tensor(list(encoded_distinct_utterances), device=device)
+    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, tensor_encoded_distinct_utterances, {i: u for i, u in enumerate(encoded_distinct_utterances)}, speaker_alpha = alpha)
     plot_reasoning_data(result_dict)
 
 
