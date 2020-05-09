@@ -1,0 +1,8 @@
+#!/bin/bash
+source /course/cs1470/tf-2.0/bin/activate
+python ~/recursionrsa/main.py 0.5
+python ~/recursionrsa/main.py 0.5
+python ~/recursionrsa/main.py 1
+python ~/recursionrsa/main.py 1
+python ~/recursionrsa/main.py 1.5
+python ~/recursionrsa/main.py 1.5

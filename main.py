@@ -13,14 +13,14 @@ import numpy as np
 #from spacy.tokenizer import Tokenizer
 #from spacy.lang.en import English
 from itertools import *
-#from sklearn import preprocessing
+from sklearn import preprocessing
 import sys
 import pandas as pd
 from gather_data import get_data, get_literal_listener_training_data, get_literal_speaker_training_data, get_pragmatic_listener_testing_data
 from tqdm import trange, tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
-#import seaborn as sns
+import seaborn as sns
 import sys
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -170,8 +170,8 @@ def main(training=True):
 
     # LOAD DATA
     print("Loading Data")
-    data_df, label_encoder, label_decoder = get_data()
-    encoded_distinct_utterances = label_encoder.values() #encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
+    data_df, le = get_data()
+    encoded_distinct_utterances = le.transform(le.classes_)
     # data_df = data_df.head()
     data_df = data_df[:500]
     training_split = 0.8
@@ -189,9 +189,9 @@ def main(training=True):
     print("Instantiating Models")
     # Instantiate Modules
     referent_encoder = ReferentEncoder().to(device)
-    description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.keys())).to(device)
+    description_encoder = DescriptionEncoder(vocab_size=len(le.classes_)).to(device)
     choice_ranker = ChoiceRanker("choiceranker").to(device)
-    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.keys())).to(device)
+    referent_describer = ReferentDescriber(num_utterances=len(le.classes_)).to(device)
 
     # Instantiate Literal Speaker and Literal Listener
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
@@ -237,7 +237,7 @@ def main(training=True):
 
     # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     print(len(test_idx_to_desc), len(descriptors))
-    tensor_encoded_distinct_utterances = torch.tensor(list(encoded_distinct_utterances), device=device)
+    tensor_encoded_distinct_utterances = torch.tensor(encoded_distinct_utterances, device=device)
     result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, tensor_encoded_distinct_utterances, {i: u for i, u in enumerate(encoded_distinct_utterances)}, speaker_alpha = alpha)
     plot_reasoning_data(result_dict)
 

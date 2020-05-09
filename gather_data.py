@@ -6,7 +6,7 @@ import csv
 import sys
 import torch
 import numpy as np
-#from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder
 from tqdm import tqdm
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -29,13 +29,13 @@ def get_data():
     df_filt['contents'] = df_filt['contents'].apply(lambda x: x.translate(str.maketrans('', '', string.punctuation)))# filter to take out punctuation
     df_final = df.loc[df['contents'].isin(utt_final)] # this is the dataset of all the games that we want to use
 
-    #le = LabelEncoder()
-    #df_final['contents'] = le.fit_transform(df_final['contents'])
-    label_encoder = {utt: i for i, utt in enumerate(set(df_final['contents']))}
-    label_decoder = {i: utt for (utt, i) in label_encoder.items()}
-    df_final['contents'] = df_final['contents'].apply(lambda x: label_encoder[x])
+    le = LabelEncoder()
+    df_final['contents'] = le.fit_transform(df_final['contents'])
+    #label_encoder = {utt: i for i, utt in enumerate(set(df_final['contents']))}
+    #label_decoder = {i: utt for (utt, i) in label_encoder.items()}
+    #df_final['contents'] = df_final['contents'].apply(lambda x: label_encoder[x])
 
-    return df_final, label_encoder, label_decoder
+    return df_final, le
 
 # Literal listener data function
 
