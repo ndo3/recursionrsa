@@ -109,7 +109,7 @@ def create_reasoning_entities(literal_listener, literal_speaker, utterances, lev
 
 def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_speaker, all_utterances, d_idx_to_descriptor):
     """
-    Assumption: pragmatic listener testing data: 
+    Assumption: pragmatic listener testing data:
     """
     reasoning_data = 0
     result_dict = {}
@@ -182,7 +182,9 @@ def main(training=True):
     referent_encoder = ReferentEncoder().to(device)
     description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.classes_)).to(device)
     choice_ranker = ChoiceRanker("choiceranker").to(device)
-    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_)).to(device)
+    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_)qq
+
+    ).to(device)
 
     # Instantiate Literal Speaker and Literal Listener
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
@@ -229,6 +231,7 @@ def main(training=True):
     # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     print(len(test_idx_to_desc), len(descriptors))
     result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)})
+    print("finished calculating results!!")
     plot_reasoning_data(result_dict)
 
 
