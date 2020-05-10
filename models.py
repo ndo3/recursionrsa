@@ -52,14 +52,14 @@ class ChoiceRanker(nn.Module):
         """
         Mental map:
             e1: hidden_referent x num_referents
-            W4: hidden_size x hidden_referent 
+            W4: hidden_size x hidden_referent
             => W4e1: hidden_size x num_referents
             ed: hidden_descriptor x 1
             W5: hidden_size x hidden_descriptor
             => W5ed: hidden_size x 1
             => W4e1 + W5ed :: (hidden_size x (num_referents))
 
-            + () : hidden_size x num_referents 
+            + () : hidden_size x num_referents
             | w3 : hidden_size x 1
             | w3^T : 1 x hidden_size (1 because we are not doing batch)
             w3^T  * () = R: 1 x num_referents
@@ -78,8 +78,8 @@ class ChoiceRanker(nn.Module):
         # Just outputting the end of equation (4) in the paper
         return x[0]
 
-        
-        
+
+
 class ReferentDescriber(nn.Module):
     def __init__(self, num_utterances, input_dim=100, hidden_dim=100):
         super(ReferentDescriber, self).__init__()
@@ -89,7 +89,7 @@ class ReferentDescriber(nn.Module):
     def forward(self, referent):
         x = F.relu(self.fc1(referent))
         x = self.fc2(x)
-        
+
         return x
 
 
@@ -135,16 +135,17 @@ class LiteralListener(nn.Module): #Listener0
             x =  self.choice_ranker(encoded_referents, encoded_descriptor) # Outputs a 1d prob dist over referents
             x = F.softmax(x, dim=0)
         return x
-        
+
 
 class ReasoningSpeaker(nn.Module):
-    def __init__(self, name, previousListener, literalSpeaker, utterances):
+    def __init__(self, name, previousListener, literalSpeaker, utterances, alpha):
         super(ReasoningSpeaker, self).__init__()
         self.name = name # adding the name of the model to know which level we are at
         self.previousListener = previousListener
         self.literalSpeaker = literalSpeaker
         self.type = "SPEAKER"
         self.reasoning = True
+        self.alpha = alpha
 
     def get_previous_listener_probs(self, referents, descriptor, descriptor_idx, descriptors, dynamic_dict):
         assert descriptor_idx == descriptor
@@ -186,7 +187,7 @@ class ReasoningSpeaker(nn.Module):
 
         # Fluency
         speaker_prob_dist = self.get_previous_literal_speaker_probs(referent, dynamic_dict) # Prob(utterance). 1d vector of len num utterance
-        final_scores = listener_prob_dist * speaker_prob_dist # 1d vector of len num utterances.
+        final_scores = listener_prob_dist * speaker_prob_dist * self.alpha# 1d vector of len num utterances.
         final_scores = F.softmax(final_scores, dim=0)
         return final_scores # Outputs a 1d prob dist over utterances
 

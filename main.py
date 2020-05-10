@@ -21,6 +21,7 @@ from tqdm import trange, tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
 import seaborn as sns
+import sys
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 device = 'cpu'
@@ -94,7 +95,7 @@ def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs
     return np.array(speaker_losses), np.array(listener_losses)
 
 
-def create_reasoning_entities(literal_listener, literal_speaker, utterances, levels_of_recursion):
+def create_reasoning_entities(literal_listener, literal_speaker, utterances, levels_of_recursion, speaker_alpha):
     speakers = {}
     listeners = {}
     for i in range(0, levels_of_recursion+1):
@@ -103,11 +104,11 @@ def create_reasoning_entities(literal_listener, literal_speaker, utterances, lev
             speakers[0] = literal_speaker
         else:
             listeners[i] = ReasoningListener("l"+str(i), speakers[i-1])
-            speakers[i] = ReasoningSpeaker("s"+str(i), listeners[i-1], speakers[0], utterances)
+            speakers[i] = ReasoningSpeaker("s"+str(i), listeners[i-1], speakers[0], utterances, speaker_alpha)
     return speakers, listeners
 
 
-def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_speaker, all_utterances, d_idx_to_descriptor):
+def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_speaker, all_utterances, d_idx_to_descriptor, alpha):
     """
     Assumption: pragmatic listener testing data:
     """
@@ -117,7 +118,7 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     print("Num utterances: ", len(all_utterances))
     for i in range(0, 12, 2):
         print("Max level: ", i)
-        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i)
+        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i, alpha)
         # print(speakers, listeners)
         num_correct = 0.
         for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
@@ -158,7 +159,17 @@ def calculate_accuracy(data, listener, speaker):
     return num_correct / len(data)
 
 
-def main(training=True):
+def write_results(alpha, output_file):
+    if output_file:
+        with open(output_file, "a") as f:
+            f.write(str(alpha))
+            f.write("|")
+            f.write(str(output_file))
+            f.write("\n")
+
+
+
+def main(training=True, alpha = 1, output_file = None):
     # LOAD DATA
     print("Loading Data")
     data_df, label_encoder = get_data()
@@ -182,9 +193,7 @@ def main(training=True):
     referent_encoder = ReferentEncoder().to(device)
     description_encoder = DescriptionEncoder(vocab_size=len(label_encoder.classes_)).to(device)
     choice_ranker = ChoiceRanker("choiceranker").to(device)
-    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_)qq
-
-    ).to(device)
+    referent_describer = ReferentDescriber(num_utterances=len(label_encoder.classes_)).to(device)
 
     # Instantiate Literal Speaker and Literal Listener
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
@@ -230,10 +239,13 @@ def main(training=True):
 
     # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     print(len(test_idx_to_desc), len(descriptors))
-    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)})
+    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)}, alpha)
     print("finished calculating results!!")
+    write_results(alpha, result_dict, output_file)
     plot_reasoning_data(result_dict)
 
 
 if __name__ == "__main__":
-    main(training=False)
+    alpha = float(sys.argv[1])
+    output_file = sys.argv[2]
+    main(training=False, alpha = alpha, output_file = output_file)
