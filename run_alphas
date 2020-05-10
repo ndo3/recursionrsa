@@ -1,7 +1,13 @@
 #!/bin/bash
-python3 main.py 0.5
-#python main.py 0.5
-#python main.py 1
-#python main.py 1
-#python main.py 1.5
-#python main.py 1.5
+python3 main.py 0.5 test.txt
+python3 main.py 0.5 test.txt
+python3 main.py 0.5 test.txt
+python3 main.py 0.75 test.txt
+python3 main.py 0.75 test.txt
+python3 main.py 0.75 test.txt
+python3 main.py 1 test.txt
+python3 main.py 1 test.txt
+python3 main.py 1 test.txt
+python3 main.py 1.5 test.txt
+python3 main.py 1.5 test.txt
+python3 main.py 1.5 test.txt
