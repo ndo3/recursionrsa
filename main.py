@@ -95,7 +95,7 @@ def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs
     return np.array(speaker_losses), np.array(listener_losses)
 
 
-def create_reasoning_entities(literal_listener, literal_speaker, utterances, levels_of_recursion, speaker_alpha):
+def create_reasoning_entities(literal_listener, literal_speaker, utterances, speaker_alpha, levels_of_recursion):
     speakers = {}
     listeners = {}
     for i in range(0, levels_of_recursion+1):
@@ -118,7 +118,7 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     print("Num utterances: ", len(all_utterances))
     for i in range(0, 12, 2):
         print("Max level: ", i)
-        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, levels_of_recursion=i, alpha)
+        speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, alpha, levels_of_recursion=i)
         # print(speakers, listeners)
         num_correct = 0.
         for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
@@ -159,12 +159,12 @@ def calculate_accuracy(data, listener, speaker):
     return num_correct / len(data)
 
 
-def write_results(alpha, output_file):
+def write_results(alpha, result_dict, output_file):
     if output_file:
         with open(output_file, "a") as f:
             f.write(str(alpha))
             f.write("|")
-            f.write(str(output_file))
+            f.write(str(result_dict))
             f.write("\n")
 
 
