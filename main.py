@@ -200,7 +200,7 @@ def main(training=True, alpha = 1, output_file = None):
 
     # Instantiate Literal Speaker and Literal Listener
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
-    s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer).to(device)
+    s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer, alpha=alpha).to(device)
 
     NUM_EPOCHS = 1000
     smoothing_sigma = 2
@@ -226,11 +226,11 @@ def main(training=True, alpha = 1, output_file = None):
     else:
         print("Loading Previously Saved Literal Weights")
         if device == 'cpu':
-            s0.load_state_dict(torch.load("literal_speaker.pth", map_location=torch.device('cpu')))
-            l0.load_state_dict(torch.load("literal_listener.pth", map_location=torch.device('cpu')))
+            s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth", map_location=torch.device('cpu')))
+            l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth", map_location=torch.device('cpu')))
         else:
-            s0.load_state_dict(torch.load("literal_speaker.pth"))
-            l0.load_state_dict(torch.load("literal_listener.pth"))
+            s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth"))
+            l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth"))
 
     s0.training = False
     l0.training = False
@@ -248,6 +248,7 @@ def main(training=True, alpha = 1, output_file = None):
 
 
 if __name__ == "__main__":
+    # Train for alpha = 0.25, 0.5, 0.75, 1., 1.5
     alpha = float(sys.argv[1])
     output_file = sys.argv[2]
     main(training=True, alpha = alpha, output_file = output_file)

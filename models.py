@@ -94,7 +94,7 @@ class ReferentDescriber(nn.Module):
 
 
 class LiteralSpeaker(nn.Module):
-    def __init__(self, name, referentEncoder, referentDescriber):
+    def __init__(self, name, referentEncoder, referentDescriber, alpha):
         super(LiteralSpeaker, self).__init__()
         self.name = name # adding the name of the model
         self.referentEncoder = referentEncoder
@@ -102,11 +102,12 @@ class LiteralSpeaker(nn.Module):
         self.type = "SPEAKER"
         self.reasoning = False
         self.training = True
+        self.alpha = alpha
 
     def forward(self, referent, dynamic_dict=None):
         # print("s0 forward")
         encoded_referent = self.referentEncoder(referent)
-        out = self.referentDescriber(encoded_referent)  # Outputs a 1d prob dist over utterances
+        out = self.referentDescriber(encoded_referent) * self.alpha  # Outputs a 1d prob dist over utterances
         if not self.training:
             out = F.softmax(out, dim=0)
         return out
