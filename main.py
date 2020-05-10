@@ -116,7 +116,7 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     result_dict = {}
     dynamic_dict = {}
     print("Num utterances: ", len(all_utterances))
-    for i in range(0, 12, 2):
+    for i in range(0, 2, 2):
         print("Max level: ", i)
         speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, alpha, levels_of_recursion=i)
         # print(speakers, listeners)
@@ -201,7 +201,6 @@ def main(training=True, alpha = 1, output_file = None):
 
     NUM_EPOCHS = 100
     smoothing_sigma = 2
-    alpha = 0.5
     clip_bound = 20.
 
     if training:
