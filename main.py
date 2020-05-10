@@ -211,7 +211,7 @@ def main(training=True, alpha = 1, output_file = None):
         literal_speaker_losses, literal_listener_losses = train_literals(literal_listener_training_data, literal_speaker_training_data, l0, s0, NUM_EPOCHS)
 
         torch.save(s0.state_dict(), "literal_speaker" + str(alpha) + ".pth")
-        torch.save(l0.state_dict(), "literal_listener" + str(alph) + ".pth")
+        torch.save(l0.state_dict(), "literal_listener" + str(alpha) + ".pth")
 
         literal_listener_losses = np.clip(gaussian_filter1d(literal_listener_losses, sigma=smoothing_sigma), 0., clip_bound)
         literal_speaker_losses = np.clip(gaussian_filter1d(literal_speaker_losses, sigma=smoothing_sigma), 0., clip_bound)
