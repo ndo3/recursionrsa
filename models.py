@@ -7,7 +7,7 @@ import numpy as np
 import sys
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = 'cpu'
+# device = 'cpu'
 
 DEBUG = False
 

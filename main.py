@@ -5,7 +5,6 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 import torch.optim as optim
 # data loading
 import pickle
@@ -22,9 +21,13 @@ import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
 import seaborn as sns
 import sys
+import random
+
+np.random.seed(0)
+random.seed(0)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-device = 'cpu'
+# device = 'cpu'
 sns.set_style("darkgrid")
 
 nlp = English()
@@ -199,7 +202,7 @@ def main(training=True, alpha = 1, output_file = None):
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
     s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer).to(device)
 
-    NUM_EPOCHS = 100
+    NUM_EPOCHS = 1000
     smoothing_sigma = 2
     clip_bound = 20.
 
@@ -247,4 +250,4 @@ def main(training=True, alpha = 1, output_file = None):
 if __name__ == "__main__":
     alpha = float(sys.argv[1])
     output_file = sys.argv[2]
-    main(training=False, alpha = alpha, output_file = output_file)
+    main(training=True, alpha = alpha, output_file = output_file)
