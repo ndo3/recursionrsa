@@ -7,6 +7,7 @@ import sys
 import torch
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
+from scipy.sparse import coo_matrix
 from tqdm import tqdm
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -34,7 +35,27 @@ def get_data():
 
     return df_final, le
 
+
+
+def get_meaning_matrix(df):
+    df['colors'] = list(zip(df['clickColH'], df['clickColS'], df['clickColL']))
+    df['colors'] = df['colors'].apply(lambda x: str(x))
+    colors_le = LabelEncoder()
+    df['colors'] = colors_le.fit_transform(df['colors']) # 100 x 100 (test data)
+    print("YEE FUCKING HAW")
+    print(colors_le.classes_)
+    meaning_mat = pd.crosstab(df['colors'], df['contents']) # rows are colors, columns are utterances
+    # row numbers and column numbers correspond to labels from colors_le and le (utterances) from get_data()
+    meaning_mat = np.array(meaning_mat) # a num_color x num_utterances matrix
+    return meaning_mat, colors_le
+
+
+
+
 # Literal listener data function
+
+
+
 
 def get_pragmatic_listener_testing_data(df):
     output = []
