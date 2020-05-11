@@ -190,60 +190,6 @@ def run_classic(df, pragmatic_listener_testing_data, alpha):
     result_dict = {k: v/len(pragmatic_listener_testing_data) for k,v in result_dict.items()}
     return result_dict
 
-
-#######################################################
-        
-
-
-    # # This part is to train
-    # while i <= 10:
-    #     # "training"
-    #     meaning_mat = classical_literal_listener.forward(meaning_mat)
-    #     meaning_mat = classical_literal_speaker.forward(meaning_mat)
-    #     # and then evaluating the performance
-    #     num_correct = 0.
-    #     total = 0.
-    #     # TODO: Change the testing data
-    #     meaning_mat_three = choose_three_rows(meaning_mat)
-    #     # correct_idx == argmax(softmax(alpha * normalize_over_each_column(meaning_mat_three)[descriptor_id]))
-
-
-
-
-    #     for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
-    #         if descriptor_idx >= len(df):
-    #             print("FATAL ERROR: run_classic")
-    #             sys.exit()
-    #         # colors_le.transform()
-    #         actual_list_of_three_referents = [helper__convert_to_string_color(x) for x in list_of_three_referents]
-    #         print("WE WERE HERE: ", actual_list_of_three_referents)
-    #         #list_of_ids_of_three_actual_referents = colors_le.transform(actual_list_of_three_referents)
-            
-            
-
-            
-
-    #         try:
-    #             correct_color_id = list_of_ids_of_three_actual_referents[correct_referent_idx]
-    #         except Exception as e:
-    #             continue
-
-
-    #         # if 999:
-    #         # return uniform over 348 utterances (np.array([1/348]*348))
-    #         # else:
-    #         # return row[x] of meaning matrix
-
-    #         # on the other hand, get what the max choice of descriptor_idx is
-    #         decided_result = np.argmax(meaning_mat, axis=0)[descriptor_idx]
-    #         if decided_result == correct_color_id:
-    #             num_correct += 1.
-
-    #         result_dict[i] = num_correct/len(pragmatic_listener_testing_data)
-    #     i += 2
-    
-    # print(result_dict, retained_dict)
-    # return result_dict
         
 
 def plot_reasoning_data(level_to_accuracy):
@@ -284,7 +230,7 @@ def main(training=True, alpha = 1, output_file = None):
     data_df, label_encoder = get_data()
     encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
     # data_df = data_df.head()
-    data_df = data_df[:700]
+    # data_df = data_df[:500]
 
     label_encoder_classic = LabelEncoder()
     label_encoder_classic.fit(data_df['contents'])
@@ -361,11 +307,11 @@ def main(training=True, alpha = 1, output_file = None):
 
     ##### Nam's part for classical
 
-    testing_df_classic = data_df_classic[int(training_split * len(data_df_classic)):]
-    pragmatic_listener_testing_data_classic, _, _ = get_pragmatic_listener_testing_data(testing_df_classic)
+    # testing_df_classic = data_df_classic[int(training_split * len(data_df_classic)):]
+    # pragmatic_listener_testing_data_classic, _, _ = get_pragmatic_listener_testing_data(testing_df_classic)
     
-    results = run_classic(data_df_classic, pragmatic_listener_testing_data, alpha)
-    print(results)
+    # results = run_classic(data_df_classic, pragmatic_listener_testing_data, alpha)
+    # print(results)
 
 
 

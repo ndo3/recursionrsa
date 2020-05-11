@@ -253,9 +253,9 @@ class ClassicLiteralSpeaker:
 
     def forward(self, meaning_matrix):
         # first, multiply each row by alpha
-        meaning_matrix = np.apply_along_axis(lambda x: x**self.alpha, 1, meaning_matrix)
+        meaning_matrix = np.apply_along_axis(lambda x: x*self.alpha, 1, meaning_matrix)
         # then row wise softmax it (row - colors, for each color softmax all the possible utterances)
-        meaning_matrix = np.apply_along_axis(lambda x: x/sum(x), 1, meaning_matrix)
+        meaning_matrix = np.apply_along_axis(softmax, 1, meaning_matrix)
         # loop through each row and assert that sum has to be 1
         return meaning_matrix
 
@@ -269,5 +269,5 @@ class ClassicLiteralListener:
 
     def forward(self, meaning_matrix):
         # first column wise softmax it (column - utterance, softmax all the possible referents)
-        meaning_matrix = np.apply_along_axis(lambda x: x/sum(x), 0, meaning_matrix)
+        meaning_matrix = np.apply_along_axis(softmax, 0, meaning_matrix)
         return meaning_matrix
