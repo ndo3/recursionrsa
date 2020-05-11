@@ -1,8 +1,6 @@
 from models import LiteralListener, LiteralSpeaker, ReasoningListener, ReasoningSpeaker, ChoiceRanker, ReferentEncoder, DescriptionEncoder, ReferentDescriber, ClassicLiteralListener, ClassicLiteralSpeaker
 from scipy.special import logsumexp
 import torch
-import torchvision
-import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -82,10 +80,10 @@ def train_literals(listener_training_data, speaker_training_data, l0, s0, epochs
     speaker_criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam([x for x in l0.parameters()] + [x for x in s0.parameters()], lr=5e-4)
     zipped_data = [x for x in zip(listener_training_data, speaker_training_data)]
-    for i in trange(epochs):
-        # print("Epoch", i)
+    for i in range(epochs):
+        print("Epoch", i)
         np.random.shuffle(zipped_data)
-        for (correct_referent_idx, list_of_three_referents, descriptor), (referent, utterance_idx) in zipped_data:
+        for (correct_referent_idx, list_of_three_referents, descriptor), (referent, utterance_idx) in tqdm(zipped_data):
             listener_probs = l0(referents=list_of_three_referents, descriptor=descriptor)
             listener_loss = listener_criterion(listener_probs.unsqueeze(0), correct_referent_idx.unsqueeze(0))
             listener_losses.append(listener_loss.item())
@@ -296,6 +294,7 @@ def main(training=True, alpha = 1, output_file = None):
     training_split = 0.8
     training_df = data_df[:int(training_split * len(data_df))]
     testing_df = data_df[int(training_split * len(data_df)):]
+    print(len(data_df), len(training_df), len(testing_df))
     literal_speaker_training_data = get_literal_speaker_training_data(training_df)
     literal_listener_training_data  = get_literal_listener_training_data(training_df)
 
@@ -316,7 +315,7 @@ def main(training=True, alpha = 1, output_file = None):
     l0 = LiteralListener("literallistener", choice_ranker, referent_encoder, description_encoder).to(device)
     s0 = LiteralSpeaker("literalspeaker", referent_encoder, referent_describer, alpha=alpha).to(device)
 
-    NUM_EPOCHS = 1000
+    NUM_EPOCHS = 20
     smoothing_sigma = 2
     clip_bound = 20.
 
@@ -324,8 +323,8 @@ def main(training=True, alpha = 1, output_file = None):
         print("Training Literals")
         literal_speaker_losses, literal_listener_losses = train_literals(literal_listener_training_data, literal_speaker_training_data, l0, s0, NUM_EPOCHS)
 
-        torch.save(s0.state_dict(), "literal_speaker" + str(alpha) + ".pth")
-        torch.save(l0.state_dict(), "literal_listener" + str(alpha) + ".pth")
+        torch.save(s0.state_dict(), "literal_speaker_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth")
+        torch.save(l0.state_dict(), "literal_listener_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth")
 
         literal_listener_losses = np.clip(gaussian_filter1d(literal_listener_losses, sigma=smoothing_sigma), 0., clip_bound)
         literal_speaker_losses = np.clip(gaussian_filter1d(literal_speaker_losses, sigma=smoothing_sigma), 0., clip_bound)
@@ -340,11 +339,11 @@ def main(training=True, alpha = 1, output_file = None):
     else:
         print("Loading Previously Saved Literal Weights")
         if device == 'cpu':
-            s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth", map_location=torch.device('cpu')))
-            l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth", map_location=torch.device('cpu')))
+            s0.load_state_dict(torch.load("literal_speaker_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth", map_location=torch.device('cpu')))
+            l0.load_state_dict(torch.load("literal_listener_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth", map_location=torch.device('cpu')))
         else:
-            s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth", map_location=torch.device('cpu')))
-            l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth", map_location=torch.device('cpu')))
+            s0.load_state_dict(torch.load("literal_speaker_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth"))
+            l0.load_state_dict(torch.load("literal_listener_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth"))
 
     s0.training = False
     l0.training = False
@@ -374,4 +373,4 @@ if __name__ == "__main__":
     # Train for alpha = 0.25, 0.5, 0.75, 1., 1.5
     alpha = float(sys.argv[1])
     output_file = sys.argv[2]
-    main(training=False, alpha = alpha, output_file = output_file)
+    main(training=True, alpha = alpha, output_file = output_file)
