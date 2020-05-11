@@ -294,23 +294,28 @@ def main(training=True, alpha = 1, output_file = None):
     s0.training = False
     l0.training = False
 
-    # # training_accuracy = calculate_accuracy(literal_listener_training_data, l0, s0)
-    # # testing_dataset = get_literal_listener_training_data(testing_df)
-    # # testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
+    # training_accuracy = calculate_accuracy(literal_listener_training_data, l0, s0)
+    # testing_dataset = get_literal_listener_training_data(testing_df)
+    # testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
 
-    # # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
+    # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     # print(len(test_idx_to_desc), len(descriptors))
-    # result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)}, alpha)
-    # print("finished calculating results!!")
-    # write_results(alpha, result_dict, output_file)
-    # plot_reasoning_data(result_dict)
+    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)}, alpha)
+    print("finished calculating results!!")
+    write_results(alpha, result_dict, output_file)
+    plot_reasoning_data(result_dict)
 
     ##### Nam's part for classical
 
-    # testing_df_classic = data_df_classic[int(training_split * len(data_df_classic)):]
-    # pragmatic_listener_testing_data_classic, _, _ = get_pragmatic_listener_testing_data(testing_df_classic)
+    testing_df_classic = data_df_classic[int(training_split * len(data_df_classic)):]
+    pragmatic_listener_testing_data_classic, _, _ = get_pragmatic_listener_testing_data(testing_df_classic)
     
-    # results = run_classic(data_df_classic, pragmatic_listener_testing_data, alpha)
+    classical_results = run_classic(data_df_classic, pragmatic_listener_testing_data, alpha)
+    with open(str(alpha) + "_classical.json", "w") as dumpfilehehe:
+        json.dump(classical_results, dumpfilehehe)
+    
+    print("Finished dumping stuff!!!")
+
     # print(results)
 
 
@@ -319,4 +324,4 @@ if __name__ == "__main__":
     # Train for alpha = 0.25, 0.5, 0.75, 1., 1.5
     alpha = float(sys.argv[1])
     output_file = sys.argv[2]
-    main(training=True, alpha = alpha, output_file = output_file)
+    main(training=False, alpha = alpha, output_file = output_file)
