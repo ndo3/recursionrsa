@@ -22,6 +22,10 @@ from scipy.ndimage.filters import gaussian_filter1d
 import seaborn as sns
 import sys
 import random
+from scipy.special import softmax
+from sklearn.preprocessing import LabelEncoder
+from copy import deepcopy as cp
+from random import choices
 
 np.random.seed(0)
 random.seed(0)
@@ -151,34 +155,97 @@ def helper__convert_to_string_color(inp):
 
 
 def run_classic(df, pragmatic_listener_testing_data, alpha):
-    classical_literal_listener = ClassicLiteralListener("classicall0")
-    classical_literal_speaker = ClassicLiteralSpeaker("s0classic", alpha)
+    classical_listener = ClassicLiteralListener("classicall0")
+    classical_speaker = ClassicLiteralSpeaker("s0classic", alpha)
     meaning_mat, colors_le = get_meaning_matrix(df)
     print("shape: ", meaning_mat.shape)
-    i = 0
-    result_dict = {}
-    # This part is to train
-    while i <= 10:
-        classical_literal_listener.forward(meaning_mat)
-        classical_literal_speaker.forward(meaning_mat)
-        # and then evaluating the performance
-        num_correct = 0.
-        # TODO: Change the testing data
-        for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
-            if descriptor_idx >= len(df):
-                print("FATAL ERROR: run_classic")
-                sys.exit()
-            # colors_le.transform()
-            actual_list_of_three_referents = [helper__convert_to_string_color(x) for x in list_of_three_referents]
-            correct_color_id = colors_le.transform(actual_list_of_three_referents[correct_referent_idx])
-            # on the other hand, get what the max choice of descriptor_idx is
-            decided_result = np.argmax(meaning_mat, axis=0)[descriptor_idx]
-            if decided_result == correct_color_id:
-                num_correct += 1.
-        result_dict[i] = num_correct/len(pragmatic_listener_testing_data)
-        i += 2
-    print(result_dict)
+    result_dict = {i: 0 for i in range(0, 12, 2)}
+
+    # for loop over referents and descriptors:
+    for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
+        actual_list_of_three_referents = [helper__convert_to_string_color(x) for x in list_of_three_referents]
+        
+        # SM = three rows of meaning mat 
+        list_of_ids_of_three_actual_referents = [-1, -1, -1]
+        for i, color in enumerate(actual_list_of_three_referents):
+            if color in colors_le.classes_:
+                list_of_ids_of_three_actual_referents[i] = colors_le.transform([color])[0]
+                # else continue
+                # so, if a color doesn't exist in the label encoder, it has label -1
+        encoded_colors = list_of_ids_of_three_actual_referents
+        # [45, 70] .forward([45, 70])
+        SM = [[1/348]*348, [1/348]*348, [1/348]*348]
+        for i, color in enumerate(encoded_colors):
+            SM[i] = meaning_mat[color]
+
+        SM = np.array(SM)
+
+        for num_rec in range(0, 12, 2):
+            SM = classical_listener.forward(SM)
+            lol = list(cp(SM))
+            SM = classical_speaker.forward(SM)
+            # print(sum(sum([l == s for l,s in zip(lol, list(SM))])))
+            correct = correct_referent_idx == np.argmax(softmax(alpha * np.apply_along_axis(softmax, 0, SM)[:,descriptor_idx]))
+            #if correct: 
+            result_dict[num_rec] += softmax(alpha * np.apply_along_axis(softmax, 0, SM)[:,descriptor_idx])[correct_referent_idx]
+            num_rec += 2
+    result_dict = {k: v/len(pragmatic_listener_testing_data) for k,v in result_dict.items()}
     return result_dict
+
+
+#######################################################
+        
+
+
+    # # This part is to train
+    # while i <= 10:
+    #     # "training"
+    #     meaning_mat = classical_literal_listener.forward(meaning_mat)
+    #     meaning_mat = classical_literal_speaker.forward(meaning_mat)
+    #     # and then evaluating the performance
+    #     num_correct = 0.
+    #     total = 0.
+    #     # TODO: Change the testing data
+    #     meaning_mat_three = choose_three_rows(meaning_mat)
+    #     # correct_idx == argmax(softmax(alpha * normalize_over_each_column(meaning_mat_three)[descriptor_id]))
+
+
+
+
+    #     for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
+    #         if descriptor_idx >= len(df):
+    #             print("FATAL ERROR: run_classic")
+    #             sys.exit()
+    #         # colors_le.transform()
+    #         actual_list_of_three_referents = [helper__convert_to_string_color(x) for x in list_of_three_referents]
+    #         print("WE WERE HERE: ", actual_list_of_three_referents)
+    #         #list_of_ids_of_three_actual_referents = colors_le.transform(actual_list_of_three_referents)
+            
+            
+
+            
+
+    #         try:
+    #             correct_color_id = list_of_ids_of_three_actual_referents[correct_referent_idx]
+    #         except Exception as e:
+    #             continue
+
+
+    #         # if 999:
+    #         # return uniform over 348 utterances (np.array([1/348]*348))
+    #         # else:
+    #         # return row[x] of meaning matrix
+
+    #         # on the other hand, get what the max choice of descriptor_idx is
+    #         decided_result = np.argmax(meaning_mat, axis=0)[descriptor_idx]
+    #         if decided_result == correct_color_id:
+    #             num_correct += 1.
+
+    #         result_dict[i] = num_correct/len(pragmatic_listener_testing_data)
+    #     i += 2
+    
+    # print(result_dict, retained_dict)
+    # return result_dict
         
 
 def plot_reasoning_data(level_to_accuracy):
@@ -219,7 +286,13 @@ def main(training=True, alpha = 1, output_file = None):
     data_df, label_encoder = get_data()
     encoded_distinct_utterances = label_encoder.transform(label_encoder.classes_)
     # data_df = data_df.head()
-    data_df = data_df[:500]
+    data_df = data_df[:700]
+
+    label_encoder_classic = LabelEncoder()
+    label_encoder_classic.fit(data_df['contents'])
+    data_df_classic = data_df
+    data_df_classic['contents'] = data_df_classic['contents'].apply(lambda x: label_encoder_classic.transform([x])[0])
+
     training_split = 0.8
     training_df = data_df[:int(training_split * len(data_df))]
     testing_df = data_df[int(training_split * len(data_df)):]
@@ -228,7 +301,7 @@ def main(training=True, alpha = 1, output_file = None):
 
     literal_speaker_testing_data = get_literal_speaker_training_data(testing_df)
     # pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(testing_df)
-    pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(training_df)
+    pragmatic_listener_testing_data, descriptors, test_idx_to_desc = get_pragmatic_listener_testing_data(testing_df)
 
 
 
@@ -276,20 +349,24 @@ def main(training=True, alpha = 1, output_file = None):
     s0.training = False
     l0.training = False
 
-    # training_accuracy = calculate_accuracy(literal_listener_training_data, l0, s0)
-    # testing_dataset = get_literal_listener_training_data(testing_df)
-    # testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
+    # # training_accuracy = calculate_accuracy(literal_listener_training_data, l0, s0)
+    # # testing_dataset = get_literal_listener_training_data(testing_df)
+    # # testing_accuracy = calculate_accuracy(testing_dataset, l0, s0)
 
-    # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
-    print(len(test_idx_to_desc), len(descriptors))
-    result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)}, alpha)
-    print("finished calculating results!!")
-    write_results(alpha, result_dict, output_file)
-    plot_reasoning_data(result_dict)
+    # # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
+    # print(len(test_idx_to_desc), len(descriptors))
+    # result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)}, alpha)
+    # print("finished calculating results!!")
+    # write_results(alpha, result_dict, output_file)
+    # plot_reasoning_data(result_dict)
 
     ##### Nam's part for classical
+
+    testing_df_classic = data_df_classic[int(training_split * len(data_df_classic)):]
+    pragmatic_listener_testing_data_classic, _, _ = get_pragmatic_listener_testing_data(testing_df_classic)
     
-    # run_classic(testing_df, pragmatic_listener_testing_data, alpha)
+    results = run_classic(data_df_classic, pragmatic_listener_testing_data, alpha)
+    print(results)
 
 
 

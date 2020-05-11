@@ -42,11 +42,18 @@ def get_meaning_matrix(df):
     df['colors'] = df['colors'].apply(lambda x: str(x))
     colors_le = LabelEncoder()
     df['colors'] = colors_le.fit_transform(df['colors']) # 100 x 100 (test data)
-    print("YEE FUCKING HAW")
-    print(colors_le.classes_)
+    print("length colors and contents", len(df['colors']), len(df['contents']))
+    print("set colors and contents", len(set(df['colors'])), len(set(df['contents'])))
     meaning_mat = pd.crosstab(df['colors'], df['contents']) # rows are colors, columns are utterances
     # row numbers and column numbers correspond to labels from colors_le and le (utterances) from get_data()
     meaning_mat = np.array(meaning_mat) # a num_color x num_utterances matrix
+
+    for i in range(len(meaning_mat[:,0])):
+        if sum(meaning_mat[i,:]) == 0:
+            print("meaning mat is 0 for this row: ", i)
+        for j in range(len(meaning_mat[0,:])):
+            if meaning_mat[i,j] == 0:
+                print("meaning mat is 0 at: ", i,j," !!!")
     return meaning_mat, colors_le
 
 
