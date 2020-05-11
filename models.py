@@ -5,6 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import sys
+from scipy.special import softmax
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # device = 'cpu'
@@ -103,6 +104,7 @@ class LiteralSpeaker(nn.Module):
         self.reasoning = False
         self.training = True
         self.alpha = alpha
+        self.neural = True
 
     def forward(self, referent, dynamic_dict=None):
         # print("s0 forward")
@@ -241,3 +243,36 @@ class ReasoningListener(nn.Module):
         prob_dist = F.softmax(prob_dist, dim=0)
 
         return prob_dist # Outputs a 1d prob dist over referents
+
+
+class ClassicLiteralSpeaker:
+    def __init__(self, name, alpha):
+        self.name = name # adding the name of the model
+        self.reasoning = False
+        self.type = "SPEAKER"
+        self.alpha = alpha
+        self.neural = False
+
+    def forward(self, meaning_matrix):
+        # first, multiply each row by alpha
+        meaning_matrix = np.apply_along_axis(lambda x: x*self.alpha, 1, meaning_matrix)
+        # then row wise softmax it (row - colors, for each color softmax all the possible utterances)
+        meaning_matrix = np.apply_along_axis(softmax, 1, meaning_matrix)
+        # loop through each row and assert that sum has to be 1
+        for row in meaning_matrix:
+            if sum(row) < 0.999: print("RIPTA ", sum(row))
+    pass
+
+
+class ClassicLiteralListener:
+    def __init__(self, name):
+        self.name = name # adding the name of the model
+        self.reasoning = False
+        self.type = "SPEAKER"
+        self.neural = False
+
+    def forward(self, meaning_matrix):
+        # first column wise softmax it (column - utterance, softmax all the possible referents)
+        meaning_matrix = np.apply_along_axis(softmax, 0, meaning_matrix)
+
+    pass

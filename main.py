@@ -1,4 +1,4 @@
-from models import LiteralListener, LiteralSpeaker, ReasoningListener, ReasoningSpeaker, ChoiceRanker, ReferentEncoder, DescriptionEncoder, ReferentDescriber
+from models import LiteralListener, LiteralSpeaker, ReasoningListener, ReasoningSpeaker, ChoiceRanker, ReferentEncoder, DescriptionEncoder, ReferentDescriber, ClassicLiteralListener, ClassicLiteralSpeaker
 from scipy.special import logsumexp
 import torch
 import torchvision
@@ -15,7 +15,7 @@ from itertools import *
 from sklearn import preprocessing
 import sys
 import pandas as pd
-from gather_data import get_data, get_literal_listener_training_data, get_literal_speaker_training_data, get_pragmatic_listener_testing_data
+from gather_data import get_data, get_literal_listener_training_data, get_literal_speaker_training_data, get_pragmatic_listener_testing_data, get_meaning_matrix
 from tqdm import trange, tqdm
 import matplotlib.pyplot as plt
 from scipy.ndimage.filters import gaussian_filter1d
@@ -140,6 +140,47 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     return result_dict
 
 
+def helper__convert_to_string_color(inp):
+    inp = [int(ele) for ele in list(inp.numpy())]
+    ret = "("
+    for ele in inp:
+        ret += str(ele) + ', '
+    ret = list(ret)[:len(ret)-1]
+    ret[-1] = ")"
+    return "".join(ret)
+
+
+def run_classic(df, pragmatic_listener_testing_data, alpha):
+    classical_literal_listener = ClassicLiteralListener("classicall0")
+    classical_literal_speaker = ClassicLiteralSpeaker("s0classic", alpha)
+    meaning_mat, colors_le = get_meaning_matrix(df)
+    print("shape: ", meaning_mat.shape)
+    i = 0
+    result_dict = {}
+    # This part is to train
+    while i <= 10:
+        classical_literal_listener.forward(meaning_mat)
+        classical_literal_speaker.forward(meaning_mat)
+        # and then evaluating the performance
+        num_correct = 0.
+        # TODO: Change the testing data
+        for correct_referent_idx, list_of_three_referents, descriptor_idx in tqdm(pragmatic_listener_testing_data):
+            if descriptor_idx >= len(df):
+                print("FATAL ERROR: run_classic")
+                sys.exit()
+            # colors_le.transform()
+            actual_list_of_three_referents = [helper__convert_to_string_color(x) for x in list_of_three_referents]
+            correct_color_id = colors_le.transform(actual_list_of_three_referents[correct_referent_idx])
+            # on the other hand, get what the max choice of descriptor_idx is
+            decided_result = np.argmax(meaning_mat, axis=0)[descriptor_idx]
+            if decided_result == correct_color_id:
+                num_correct += 1.
+        result_dict[i] = num_correct/len(pragmatic_listener_testing_data)
+        i += 2
+    print(result_dict)
+    return result_dict
+        
+
 def plot_reasoning_data(level_to_accuracy):
     xs = sorted([k for k in level_to_accuracy])
     ys = [level_to_accuracy[k] for k in xs]
@@ -229,8 +270,8 @@ def main(training=True, alpha = 1, output_file = None):
             s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth", map_location=torch.device('cpu')))
             l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth", map_location=torch.device('cpu')))
         else:
-            s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth"))
-            l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth"))
+            s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth", map_location=torch.device('cpu')))
+            l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth", map_location=torch.device('cpu')))
 
     s0.training = False
     l0.training = False
@@ -246,9 +287,14 @@ def main(training=True, alpha = 1, output_file = None):
     write_results(alpha, result_dict, output_file)
     plot_reasoning_data(result_dict)
 
+    ##### Nam's part for classical
+    
+    # run_classic(testing_df, pragmatic_listener_testing_data, alpha)
+
+
 
 if __name__ == "__main__":
     # Train for alpha = 0.25, 0.5, 0.75, 1., 1.5
     alpha = float(sys.argv[1])
     output_file = sys.argv[2]
-    main(training=True, alpha = alpha, output_file = output_file)
+    main(training=False, alpha = alpha, output_file = output_file)

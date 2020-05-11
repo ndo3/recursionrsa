@@ -37,11 +37,13 @@ def get_data():
 
 
 
-def get_meaning_matrix(df, num_colors, num_utterances):
+def get_meaning_matrix(df):
     df['colors'] = list(zip(df['clickColH'], df['clickColS'], df['clickColL']))
     df['colors'] = df['colors'].apply(lambda x: str(x))
     colors_le = LabelEncoder()
-    df['colors'] = le.fit_transform(df['colors'])
+    df['colors'] = colors_le.fit_transform(df['colors']) # 100 x 100 (test data)
+    print("YEE FUCKING HAW")
+    print(colors_le.classes_)
     meaning_mat = pd.crosstab(df['colors'], df['contents']) # rows are colors, columns are utterances
     # row numbers and column numbers correspond to labels from colors_le and le (utterances) from get_data()
     meaning_mat = np.array(meaning_mat) # a num_color x num_utterances matrix
