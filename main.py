@@ -291,6 +291,12 @@ def main(training=True, alpha = 1, output_file = None):
         else:
             s0.load_state_dict(torch.load("literal_speaker_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth"))
             l0.load_state_dict(torch.load("literal_listener_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth"))
+        # if device == 'cpu':
+        #     s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth", map_location=torch.device('cpu')))
+        #     l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth", map_location=torch.device('cpu')))
+        # else:
+        #     s0.load_state_dict(torch.load("literal_speaker" + str(alpha) + ".pth", map_location=torch.device('cpu')))
+        #     l0.load_state_dict(torch.load("literal_listener" + str(alpha) + ".pth", map_location=torch.device('cpu')))
 
     s0.training = False
     l0.training = False
@@ -306,13 +312,13 @@ def main(training=True, alpha = 1, output_file = None):
     write_results(alpha, result_dict, output_file)
     plot_reasoning_data(result_dict)
 
-    ##### Nam's part for classical
+    # ##### Nam's part for classical
 
     testing_df_classic = data_df_classic[int(training_split * len(data_df_classic)):]
     pragmatic_listener_testing_data_classic, _, _ = get_pragmatic_listener_testing_data(testing_df_classic)
     
     classical_results = run_classic(data_df_classic, pragmatic_listener_testing_data, alpha)
-    with open(str(alpha) + "_classical.json", "w") as dumpfilehehe:
+    with open("nonneural_result/"+str(alpha) + "_classical.json", "w") as dumpfilehehe:
         json.dump(classical_results, dumpfilehehe)
     
     print("Finished dumping stuff!!!")
