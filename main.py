@@ -25,12 +25,13 @@ from sklearn.preprocessing import LabelEncoder
 from copy import deepcopy as cp
 from random import choices
 import json
+import os
 
 np.random.seed(0)
 random.seed(0)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = 'cpu'
+device = 'cpu'
 sns.set_style("darkgrid")
 
 nlp = English()
@@ -123,7 +124,7 @@ def run_reasoning(pragmatic_listener_testing_data, literal_listener, literal_spe
     dynamic_dict = {}
     print("Num utterances: ", len(all_utterances))
     for i in range(0, 12, 2):
-        print("Max level: ", i)
+        sys.stderr.write("Max level: " + str(i) + "\n")
         speakers, listeners = create_reasoning_entities(literal_listener, literal_speaker, all_utterances, alpha, levels_of_recursion=i)
         # print(speakers, listeners)
         num_correct = 0.
@@ -284,7 +285,7 @@ def main(training=True, alpha = 1, output_file = None):
         plt.savefig("losses.png")
         sys.exit()
     else:
-        print("Loading Previously Saved Literal Weights")
+        sys.stderr.write("Loading Previously Saved Literal Weights\n")
         if device == 'cpu':
             s0.load_state_dict(torch.load("literal_speaker_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth", map_location=torch.device('cpu')))
             l0.load_state_dict(torch.load("literal_listener_alpha_" + str(alpha) + "_datapoints" + str(len(data_df)) + ".pth", map_location=torch.device('cpu')))
@@ -301,6 +302,7 @@ def main(training=True, alpha = 1, output_file = None):
 
     # print("Training Accuracy", training_accuracy, "Testing Accuracy", testing_accuracy)
     # print(len(test_idx_to_desc), len(descriptors))
+    sys.stderr.write("About to Run Reasoning\n")
     result_dict = run_reasoning(pragmatic_listener_testing_data, l0, s0, torch.tensor(encoded_distinct_utterances, device=device), {i: u for i, u in enumerate(encoded_distinct_utterances)}, alpha)
     print("finished calculating results!!")
     write_results(alpha, result_dict, output_file)
@@ -311,6 +313,7 @@ def main(training=True, alpha = 1, output_file = None):
     testing_df_classic = data_df_classic[int(training_split * len(data_df_classic)):]
     pragmatic_listener_testing_data_classic, _, _ = get_pragmatic_listener_testing_data(testing_df_classic)
     
+    sys.stderr.write("About to Run Classic\n")
     classical_results = run_classic(data_df_classic, pragmatic_listener_testing_data, alpha)
     with open(str(alpha) + "_classical.json", "w") as dumpfilehehe:
         json.dump(classical_results, dumpfilehehe)
@@ -323,6 +326,9 @@ def main(training=True, alpha = 1, output_file = None):
 
 if __name__ == "__main__":
     # Train for alpha = 0.25, 0.5, 0.75, 1., 1.5
-    alpha = float(sys.argv[1])
-    output_file = sys.argv[2]
+    # alpha = float(sys.argv[1])
+    # output_file = sys.argv[2]
+    alpha = float(os.environ["SGE_TASK_ID"]) / 4.
+    output_file = str(alpha) + ".txt"
+    print("Training with alpha", alpha, "and output file", output_file)
     main(training=False, alpha = alpha, output_file = output_file)

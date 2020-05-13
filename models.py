@@ -6,7 +6,7 @@ import sys
 from scipy.special import softmax
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = 'cpu'
+device = 'cpu'
 
 DEBUG = False
 

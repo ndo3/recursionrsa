@@ -11,7 +11,7 @@ from scipy.sparse import coo_matrix
 from tqdm import tqdm
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-# device = 'cpu'
+device = 'cpu'
 
 def get_data():
     df = pd.read_csv("./data/filteredCorpus.csv")
